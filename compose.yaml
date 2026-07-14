@@ -1,0 +1,44 @@
+name: ebookstore
+
+services:
+  workspace:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    working_dir: /workspace
+    command: ["sleep", "infinity"]
+    init: true
+    tty: true
+    stdin_open: true
+    environment:
+      DATABASE_URL: postgresql://ebookstore:ebookstore_dev@postgres:5432/ebookstore
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: ebookstore
+      POSTGRES_USER: ebookstore
+      POSTGRES_PASSWORD: ebookstore_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ebookstore -d ebookstore"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  node_modules:
+  postgres_data:

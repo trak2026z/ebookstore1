@@ -1,0 +1,32 @@
+# Version control
+.git
+.gitignore
+
+# Dependencies and build output
+node_modules
+**/node_modules
+dist
+**/dist
+build
+**/build
+.next
+**/.next
+coverage
+**/coverage
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Editor and operating-system files
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+npm-debug.log*
+tmp
+temp
