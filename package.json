@@ -13,12 +13,12 @@
   ],
   "scripts": {
     "env:check": "node --version && npm --version && node -e \"console.log(process.cwd())\"",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run build --workspace @ebookstore/contracts && npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspace @ebookstore/contracts && npm run build --workspace @ebookstore/api"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
