@@ -4,24 +4,20 @@ import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module";
+import { APP_CONFIG, type AppConfig } from "./config/app-config";
 import { configureApp } from "./platform/configure-app";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+  const config = app.get<AppConfig>(APP_CONFIG);
+
   configureApp(app);
   app.enableShutdownHooks();
 
-  const portValue = process.env["PORT"] ?? "3001";
-  const port = Number.parseInt(portValue, 10);
-
-  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
-    throw new Error(`Invalid PORT value: ${portValue}`);
-  }
-
-  await app.listen(port, "0.0.0.0");
+  await app.listen(config.port, "0.0.0.0");
 
   const logger = new Logger("Bootstrap");
-  logger.log(`API listening on port ${port}`);
+  logger.log(`API listening on port ${config.port}`);
 }
 
 void bootstrap();
