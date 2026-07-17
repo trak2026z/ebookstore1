@@ -3,29 +3,24 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "nest build",
+    "db:generate": "prisma generate",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
+    "build": "npm run db:generate && nest build",
     "start": "node dist/main.js",
-    "start:dev": "nest start --watch",
-    "typecheck": "tsc --noEmit",
+    "start:dev": "npm run db:generate && nest start --watch",
+    "typecheck": "npm run db:generate && tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "@ebookstore/contracts": "0.0.0",
-    "@nestjs/common": "^11.1.28",
-    "@nestjs/core": "^11.1.28",
-    "@nestjs/platform-express": "^11.1.28",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.1",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
-    "@nestjs/cli": "^11.0.24",
-    "@nestjs/schematics": "^11.1.0",
-    "@nestjs/testing": "^11.1.28",
-    "@types/express": "^5.0.6",
-    "@types/node": "^26.1.1",
-    "@types/supertest": "^7.2.1",
-    "supertest": "^7.2.2"
+    "@types/pg": "^8.20.0",
+    "prisma": "^7.8.0"
   }
 }

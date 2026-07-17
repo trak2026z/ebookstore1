@@ -4,6 +4,9 @@ docs/
 node_modules/
 **/node_modules/
 
+# Generated Prisma Client
+apps/api/src/generated/prisma/
+
 # Build output
 dist/
 **/dist/

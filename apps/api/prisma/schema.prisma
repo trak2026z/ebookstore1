@@ -1,0 +1,17 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model SystemMetadata {
+  key       String   @id @db.VarChar(100)
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_metadata")
+}

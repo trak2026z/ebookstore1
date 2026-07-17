@@ -9,6 +9,10 @@ ENV NODE_ENV=development \
 
 WORKDIR /workspace
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 # The official Node image already provides the non-root "node" user.
 # The named volume mounted at /workspace/node_modules is prepared here
 # so npm can write dependencies without using the host's node_modules.
