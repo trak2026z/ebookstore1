@@ -4,7 +4,7 @@ import type { DatabaseService } from "../database/database.service";
 import { CatalogService } from "./catalog.service";
 
 describe("CatalogService", () => {
-  it("applies a case-insensitive title search to list and count queries", async () => {
+  it("searches by title or author name without case sensitivity", async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const count = vi.fn().mockResolvedValue(0);
     const transaction = vi.fn().mockResolvedValue([[], 0]);
@@ -24,15 +24,29 @@ describe("CatalogService", () => {
     await service.getBooks({
       page: 1,
       pageSize: 20,
-      q: "dune",
+      q: "le guin",
     });
 
     const expectedWhere = {
       isActive: true,
-      title: {
-        contains: "dune",
-        mode: "insensitive",
-      },
+      OR: [
+        {
+          title: {
+            contains: "le guin",
+            mode: "insensitive",
+          },
+        },
+        {
+          author: {
+            is: {
+              name: {
+                contains: "le guin",
+                mode: "insensitive",
+              },
+            },
+          },
+        },
+      ],
     };
 
     expect(findMany).toHaveBeenCalledWith(
@@ -48,7 +62,7 @@ describe("CatalogService", () => {
     expect(transaction).toHaveBeenCalledOnce();
   });
 
-  it("combines title search with the category filter", async () => {
+  it("combines text search with the category filter", async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const count = vi.fn().mockResolvedValue(0);
     const transaction = vi.fn().mockResolvedValue([[], 0]);
@@ -77,10 +91,24 @@ describe("CatalogService", () => {
       category: {
         slug: "science-fiction",
       },
-      title: {
-        contains: "left hand",
-        mode: "insensitive",
-      },
+      OR: [
+        {
+          title: {
+            contains: "left hand",
+            mode: "insensitive",
+          },
+        },
+        {
+          author: {
+            is: {
+              name: {
+                contains: "left hand",
+                mode: "insensitive",
+              },
+            },
+          },
+        },
+      ],
     };
 
     expect(findMany).toHaveBeenCalledWith(

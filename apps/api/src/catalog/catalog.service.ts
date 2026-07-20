@@ -50,10 +50,24 @@ export class CatalogService {
       ...(query.q === undefined
         ? {}
         : {
-            title: {
-              contains: query.q,
-              mode: "insensitive",
-            },
+            OR: [
+              {
+                title: {
+                  contains: query.q,
+                  mode: "insensitive",
+                },
+              },
+              {
+                author: {
+                  is: {
+                    name: {
+                      contains: query.q,
+                      mode: "insensitive",
+                    },
+                  },
+                },
+              },
+            ],
           }),
     } satisfies Prisma.BookWhereInput;
 
