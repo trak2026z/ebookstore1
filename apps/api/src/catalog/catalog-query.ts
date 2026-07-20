@@ -2,7 +2,13 @@ export const DEFAULT_CATALOG_PAGE = 1;
 export const DEFAULT_CATALOG_PAGE_SIZE = 20;
 export const MAX_CATALOG_PAGE_SIZE = 100;
 
-export const CATALOG_SORT_VALUES = ["newest", "title-asc", "price-asc", "price-desc"] as const;
+export const CATALOG_SORT_VALUES = [
+  "newest",
+  "title-asc",
+  "title-desc",
+  "price-asc",
+  "price-desc",
+] as const;
 
 export type CatalogSort = (typeof CATALOG_SORT_VALUES)[number];
 

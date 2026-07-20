@@ -19,6 +19,7 @@ export class CatalogController {
     @Query("category") category?: string,
     @Query("author") author?: string,
     @Query("q") q?: string,
+    @Query("sort") sort?: string,
   ): Promise<BookListResponse> {
     try {
       const query = parseCatalogQuery({
@@ -27,6 +28,7 @@ export class CatalogController {
         ...(category === undefined ? {} : { category }),
         ...(author === undefined ? {} : { author }),
         ...(q === undefined ? {} : { q }),
+        ...(sort === undefined ? {} : { sort }),
       });
 
       return this.catalog.getBooks({
@@ -35,6 +37,7 @@ export class CatalogController {
         ...(query.category === undefined ? {} : { category: query.category }),
         ...(query.author === undefined ? {} : { author: query.author }),
         ...(query.q === undefined ? {} : { q: query.q }),
+        ...(query.sort === undefined ? {} : { sort: query.sort }),
       });
     } catch (error: unknown) {
       if (error instanceof Error) {

@@ -94,7 +94,7 @@ describe("parseCatalogQuery", () => {
 
   it.each(["unknown", "", "TITLE-ASC", "price"])("rejects invalid sorting value %j", (sort) => {
     expect(() => parseCatalogQuery({ sort })).toThrow(
-      "sort must be one of: newest, title-asc, price-asc, price-desc",
+      "sort must be one of: newest, title-asc, title-desc, price-asc, price-desc",
     );
   });
 });
