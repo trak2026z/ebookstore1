@@ -3,11 +3,16 @@ import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type { BookDetailsResponse, BookListItem, BookListResponse } from "@ebookstore/contracts";
 
 import { DatabaseService } from "../database/database.service";
+import type { Prisma } from "../generated/prisma/client.js";
+import type { CatalogSort } from "./catalog-query";
 
 interface GetBooksQuery {
   readonly page: number;
   readonly pageSize: number;
   readonly category?: string;
+  readonly author?: string;
+  readonly q?: string;
+  readonly sort?: CatalogSort;
 }
 
 interface BookWithRelations {
@@ -38,14 +43,31 @@ export class CatalogService {
   async getBooks(query: GetBooksQuery): Promise<BookListResponse> {
     const where = {
       isActive: true,
-      ...(query.category === undefined
+      ...(query.category === undefined ? {} : { category: { slug: query.category } }),
+      ...(query.author === undefined ? {} : { author: { is: { slug: query.author } } }),
+      ...(query.q === undefined
         ? {}
         : {
-            category: {
-              slug: query.category,
-            },
+            OR: [
+              {
+                title: {
+                  contains: query.q,
+                  mode: "insensitive",
+                },
+              },
+              {
+                author: {
+                  is: {
+                    name: {
+                      contains: query.q,
+                      mode: "insensitive",
+                    },
+                  },
+                },
+              },
+            ],
           }),
-    };
+    } satisfies Prisma.BookWhereInput;
 
     const [books, total] = await this.database.prisma.$transaction([
       this.database.prisma.book.findMany({
@@ -54,20 +76,11 @@ export class CatalogService {
           author: true,
           category: true,
         },
-        orderBy: [
-          {
-            createdAt: "desc",
-          },
-          {
-            id: "asc",
-          },
-        ],
+        orderBy: getBookOrderBy(query.sort),
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),
-      this.database.prisma.book.count({
-        where,
-      }),
+      this.database.prisma.book.count({ where }),
     ]);
 
     return {
@@ -102,6 +115,22 @@ export class CatalogService {
       description: book.description,
       publishedAt: book.publishedAt?.toISOString() ?? null,
     };
+  }
+}
+
+function getBookOrderBy(sort: CatalogSort | undefined): Prisma.BookOrderByWithRelationInput[] {
+  switch (sort) {
+    case "price-asc":
+      return [{ priceCents: "asc" }, { id: "asc" }];
+    case "price-desc":
+      return [{ priceCents: "desc" }, { id: "asc" }];
+    case "title-asc":
+      return [{ title: "asc" }, { id: "asc" }];
+    case "title-desc":
+      return [{ title: "desc" }, { id: "asc" }];
+    case "newest":
+    case undefined:
+      return [{ createdAt: "desc" }, { id: "asc" }];
   }
 }
 

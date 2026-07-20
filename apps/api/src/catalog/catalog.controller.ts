@@ -2,6 +2,7 @@ import { BadRequestException, Controller, Get, Inject, Param, Query } from "@nes
 
 import type { BookDetailsResponse, BookListResponse } from "@ebookstore/contracts";
 
+import { parseCatalogQuery } from "./catalog-query";
 import { CatalogService } from "./catalog.service";
 
 @Controller("books")
@@ -13,38 +14,42 @@ export class CatalogController {
 
   @Get()
   getBooks(
-    @Query("page") pageInput?: string,
-    @Query("pageSize") pageSizeInput?: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
     @Query("category") category?: string,
+    @Query("author") author?: string,
+    @Query("q") q?: string,
+    @Query("sort") sort?: string,
   ): Promise<BookListResponse> {
-    return this.catalog.getBooks({
-      page: parsePositiveInteger(pageInput, 1, "page"),
-      pageSize: parsePositiveInteger(pageSizeInput, 20, "pageSize", 100),
-      ...(category === undefined ? {} : { category }),
-    });
+    try {
+      const query = parseCatalogQuery({
+        ...(page === undefined ? {} : { page }),
+        ...(pageSize === undefined ? {} : { pageSize }),
+        ...(category === undefined ? {} : { category }),
+        ...(author === undefined ? {} : { author }),
+        ...(q === undefined ? {} : { q }),
+        ...(sort === undefined ? {} : { sort }),
+      });
+
+      return this.catalog.getBooks({
+        page: query.page,
+        pageSize: query.pageSize,
+        ...(query.category === undefined ? {} : { category: query.category }),
+        ...(query.author === undefined ? {} : { author: query.author }),
+        ...(query.q === undefined ? {} : { q: query.q }),
+        ...(query.sort === undefined ? {} : { sort: query.sort }),
+      });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new BadRequestException(error.message);
+      }
+
+      throw error;
+    }
   }
 
   @Get(":slug")
   getBook(@Param("slug") slug: string): Promise<BookDetailsResponse> {
     return this.catalog.getBookBySlug(slug);
   }
-}
-
-function parsePositiveInteger(
-  input: string | undefined,
-  fallback: number,
-  field: string,
-  maximum?: number,
-): number {
-  if (input === undefined) {
-    return fallback;
-  }
-
-  const value = Number(input);
-
-  if (!Number.isInteger(value) || value < 1 || (maximum !== undefined && value > maximum)) {
-    throw new BadRequestException(`${field} must be a positive integer.`);
-  }
-
-  return value;
 }
