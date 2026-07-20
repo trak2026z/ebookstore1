@@ -53,13 +53,33 @@ describe("Catalog API", () => {
     });
 
     await request(app.getHttpServer())
-      .get("/api/v1/books?page=%202%20&pageSize=%2025%20&category=%20fiction%20")
+      .get("/api/v1/books?page=%202%20&pageSize=%2025%20&category=%20fiction%20&q=%20dune%20")
       .expect(200);
 
     expect(getBooks).toHaveBeenCalledWith({
       page: 2,
       pageSize: 25,
       category: "fiction",
+      q: "dune",
+    });
+  });
+
+  it("omits an empty search query before calling the service", async () => {
+    const getBooks = vi.fn().mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
+    });
+
+    app = await createApp({
+      getBooks,
+      getBookBySlug: vi.fn(),
+    });
+
+    await request(app.getHttpServer()).get("/api/v1/books?q=%20%20%20").expect(200);
+
+    expect(getBooks).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 20,
     });
   });
 

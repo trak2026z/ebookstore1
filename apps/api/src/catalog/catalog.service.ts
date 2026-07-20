@@ -3,11 +3,13 @@ import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type { BookDetailsResponse, BookListItem, BookListResponse } from "@ebookstore/contracts";
 
 import { DatabaseService } from "../database/database.service";
+import type { Prisma } from "../generated/prisma/client.js";
 
 interface GetBooksQuery {
   readonly page: number;
   readonly pageSize: number;
   readonly category?: string;
+  readonly q?: string;
 }
 
 interface BookWithRelations {
@@ -45,7 +47,15 @@ export class CatalogService {
               slug: query.category,
             },
           }),
-    };
+      ...(query.q === undefined
+        ? {}
+        : {
+            title: {
+              contains: query.q,
+              mode: "insensitive",
+            },
+          }),
+    } satisfies Prisma.BookWhereInput;
 
     const [books, total] = await this.database.prisma.$transaction([
       this.database.prisma.book.findMany({
