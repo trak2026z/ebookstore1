@@ -16,6 +16,30 @@ describe("Catalog API", () => {
     app = undefined;
   });
 
+  it("returns the public author dictionary", async () => {
+    const getAuthors = vi.fn().mockResolvedValue({
+      items: [
+        { name: "Octavia E. Butler", slug: "octavia-e-butler" },
+        { name: "Ursula K. Le Guin", slug: "ursula-k-le-guin" },
+      ],
+    });
+    app = await createApp({
+      getAuthors,
+      getBooks: vi.fn(),
+      getBookBySlug: vi.fn(),
+    });
+
+    const response = await request(app.getHttpServer()).get("/api/v1/authors").expect(200);
+
+    expect(response.body).toEqual({
+      items: [
+        { name: "Octavia E. Butler", slug: "octavia-e-butler" },
+        { name: "Ursula K. Le Guin", slug: "ursula-k-le-guin" },
+      ],
+    });
+    expect(getAuthors).toHaveBeenCalledOnce();
+  });
+
   it("returns a paginated book list", async () => {
     const getBooks = vi.fn().mockResolvedValue({
       items: [],
@@ -102,16 +126,21 @@ describe("Catalog API", () => {
   });
 
   async function createApp(catalogService: {
+    getAuthors?: ReturnType<typeof vi.fn>;
     getBooks: ReturnType<typeof vi.fn>;
     getBookBySlug: ReturnType<typeof vi.fn>;
   }): Promise<INestApplication> {
+    const service = {
+      getAuthors: vi.fn().mockResolvedValue({ items: [] }),
+      ...catalogService,
+    };
     const module = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideProvider(DatabaseService)
       .useValue({ ping: vi.fn() })
       .overrideProvider(CatalogService)
-      .useValue(catalogService)
+      .useValue(service)
       .compile();
 
     const application = module.createNestApplication();

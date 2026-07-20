@@ -14,6 +14,15 @@ export interface BookReference {
   readonly slug: string;
 }
 
+export interface AuthorListItem {
+  readonly name: string;
+  readonly slug: string;
+}
+
+export interface AuthorListResponse {
+  readonly items: readonly AuthorListItem[];
+}
+
 export interface BookListItem {
   readonly id: string;
   readonly title: string;

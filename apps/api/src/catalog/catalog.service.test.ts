@@ -5,6 +5,25 @@ import type { CatalogSort } from "./catalog-query";
 import { CatalogService } from "./catalog.service";
 
 describe("CatalogService", () => {
+  it("returns the public author dictionary in a stable order", async () => {
+    const { database, findAuthors } = createDatabaseMock();
+    const authors = [
+      { name: "Octavia E. Butler", slug: "octavia-e-butler" },
+      { name: "Ursula K. Le Guin", slug: "ursula-k-le-guin" },
+    ];
+    findAuthors.mockResolvedValue(authors);
+    const service = new CatalogService(database);
+
+    await expect(service.getAuthors()).resolves.toEqual({ items: authors });
+    expect(findAuthors).toHaveBeenCalledWith({
+      select: {
+        name: true,
+        slug: true,
+      },
+      orderBy: [{ name: "asc" }, { slug: "asc" }],
+    });
+  });
+
   it("filters books by author slug", async () => {
     const { database, findMany, count } = createDatabaseMock();
     const service = new CatalogService(database);
@@ -86,9 +105,11 @@ describe("CatalogService", () => {
 
 function createDatabaseMock(): {
   readonly database: DatabaseService;
+  readonly findAuthors: ReturnType<typeof vi.fn>;
   readonly findMany: ReturnType<typeof vi.fn>;
   readonly count: ReturnType<typeof vi.fn>;
 } {
+  const findAuthors = vi.fn().mockResolvedValue([]);
   const findMany = vi.fn().mockResolvedValue([]);
   const count = vi.fn().mockResolvedValue(0);
   const transaction = vi.fn().mockResolvedValue([[], 0]);
@@ -96,10 +117,12 @@ function createDatabaseMock(): {
   return {
     database: {
       prisma: {
+        author: { findMany: findAuthors },
         book: { findMany, count },
         $transaction: transaction,
       },
     } as unknown as DatabaseService,
+    findAuthors,
     findMany,
     count,
   };
