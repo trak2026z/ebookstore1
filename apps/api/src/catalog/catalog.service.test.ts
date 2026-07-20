@@ -4,7 +4,7 @@ import type { DatabaseService } from "../database/database.service";
 import { CatalogService } from "./catalog.service";
 
 describe("CatalogService", () => {
-  it("searches by title or author name without case sensitivity", async () => {
+  it("filters books by author slug", async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const count = vi.fn().mockResolvedValue(0);
     const transaction = vi.fn().mockResolvedValue([[], 0]);
@@ -24,29 +24,16 @@ describe("CatalogService", () => {
     await service.getBooks({
       page: 1,
       pageSize: 20,
-      q: "le guin",
+      author: "ursula-le-guin",
     });
 
     const expectedWhere = {
       isActive: true,
-      OR: [
-        {
-          title: {
-            contains: "le guin",
-            mode: "insensitive",
-          },
+      author: {
+        is: {
+          slug: "ursula-le-guin",
         },
-        {
-          author: {
-            is: {
-              name: {
-                contains: "le guin",
-                mode: "insensitive",
-              },
-            },
-          },
-        },
-      ],
+      },
     };
 
     expect(findMany).toHaveBeenCalledWith(
@@ -62,7 +49,7 @@ describe("CatalogService", () => {
     expect(transaction).toHaveBeenCalledOnce();
   });
 
-  it("combines text search with the category filter", async () => {
+  it("combines author, category and text filters", async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const count = vi.fn().mockResolvedValue(0);
     const transaction = vi.fn().mockResolvedValue([[], 0]);
@@ -83,7 +70,8 @@ describe("CatalogService", () => {
       page: 2,
       pageSize: 10,
       category: "science-fiction",
-      q: "left hand",
+      author: "ursula-le-guin",
+      q: "earthsea",
     });
 
     const expectedWhere = {
@@ -91,10 +79,15 @@ describe("CatalogService", () => {
       category: {
         slug: "science-fiction",
       },
+      author: {
+        is: {
+          slug: "ursula-le-guin",
+        },
+      },
       OR: [
         {
           title: {
-            contains: "left hand",
+            contains: "earthsea",
             mode: "insensitive",
           },
         },
@@ -102,7 +95,7 @@ describe("CatalogService", () => {
           author: {
             is: {
               name: {
-                contains: "left hand",
+                contains: "earthsea",
                 mode: "insensitive",
               },
             },

@@ -9,6 +9,7 @@ interface GetBooksQuery {
   readonly page: number;
   readonly pageSize: number;
   readonly category?: string;
+  readonly author?: string;
   readonly q?: string;
 }
 
@@ -45,6 +46,15 @@ export class CatalogService {
         : {
             category: {
               slug: query.category,
+            },
+          }),
+      ...(query.author === undefined
+        ? {}
+        : {
+            author: {
+              is: {
+                slug: query.author,
+              },
             },
           }),
       ...(query.q === undefined

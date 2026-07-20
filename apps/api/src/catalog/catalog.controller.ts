@@ -17,6 +17,7 @@ export class CatalogController {
     @Query("page") page?: string,
     @Query("pageSize") pageSize?: string,
     @Query("category") category?: string,
+    @Query("author") author?: string,
     @Query("q") q?: string,
   ): Promise<BookListResponse> {
     try {
@@ -24,6 +25,7 @@ export class CatalogController {
         ...(page === undefined ? {} : { page }),
         ...(pageSize === undefined ? {} : { pageSize }),
         ...(category === undefined ? {} : { category }),
+        ...(author === undefined ? {} : { author }),
         ...(q === undefined ? {} : { q }),
       });
 
@@ -31,6 +33,7 @@ export class CatalogController {
         page: query.page,
         pageSize: query.pageSize,
         ...(query.category === undefined ? {} : { category: query.category }),
+        ...(query.author === undefined ? {} : { author: query.author }),
         ...(query.q === undefined ? {} : { q: query.q }),
       });
     } catch (error: unknown) {
