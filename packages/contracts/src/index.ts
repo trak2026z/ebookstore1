@@ -23,6 +23,15 @@ export interface AuthorListResponse {
   readonly items: readonly AuthorListItem[];
 }
 
+export interface CategoryListItem {
+  readonly name: string;
+  readonly slug: string;
+}
+
+export interface CategoryListResponse {
+  readonly items: readonly CategoryListItem[];
+}
+
 export interface BookListItem {
   readonly id: string;
   readonly title: string;

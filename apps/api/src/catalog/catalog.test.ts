@@ -40,6 +40,30 @@ describe("Catalog API", () => {
     expect(getAuthors).toHaveBeenCalledOnce();
   });
 
+  it("returns the public category dictionary", async () => {
+    const getCategories = vi.fn().mockResolvedValue({
+      items: [
+        { name: "Fantasy", slug: "fantasy" },
+        { name: "Science Fiction", slug: "science-fiction" },
+      ],
+    });
+    app = await createApp({
+      getCategories,
+      getBooks: vi.fn(),
+      getBookBySlug: vi.fn(),
+    });
+
+    const response = await request(app.getHttpServer()).get("/api/v1/categories").expect(200);
+
+    expect(response.body).toEqual({
+      items: [
+        { name: "Fantasy", slug: "fantasy" },
+        { name: "Science Fiction", slug: "science-fiction" },
+      ],
+    });
+    expect(getCategories).toHaveBeenCalledOnce();
+  });
+
   it("returns a paginated book list", async () => {
     const getBooks = vi.fn().mockResolvedValue({
       items: [],
@@ -127,11 +151,13 @@ describe("Catalog API", () => {
 
   async function createApp(catalogService: {
     getAuthors?: ReturnType<typeof vi.fn>;
+    getCategories?: ReturnType<typeof vi.fn>;
     getBooks: ReturnType<typeof vi.fn>;
     getBookBySlug: ReturnType<typeof vi.fn>;
   }): Promise<INestApplication> {
     const service = {
       getAuthors: vi.fn().mockResolvedValue({ items: [] }),
+      getCategories: vi.fn().mockResolvedValue({ items: [] }),
       ...catalogService,
     };
     const module = await Test.createTestingModule({

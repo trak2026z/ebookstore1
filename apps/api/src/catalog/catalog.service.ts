@@ -5,6 +5,7 @@ import type {
   BookDetailsResponse,
   BookListItem,
   BookListResponse,
+  CategoryListResponse,
 } from "@ebookstore/contracts";
 
 import { DatabaseService } from "../database/database.service";
@@ -55,6 +56,18 @@ export class CatalogService {
     });
 
     return { items: authors };
+  }
+
+  async getCategories(): Promise<CategoryListResponse> {
+    const categories = await this.database.prisma.category.findMany({
+      select: {
+        name: true,
+        slug: true,
+      },
+      orderBy: [{ name: "asc" }, { slug: "asc" }],
+    });
+
+    return { items: categories };
   }
 
   async getBooks(query: GetBooksQuery): Promise<BookListResponse> {
