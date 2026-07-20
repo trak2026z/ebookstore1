@@ -17,11 +17,13 @@ describe("Catalog API", () => {
   });
 
   it("returns a paginated book list", async () => {
+    const getBooks = vi.fn().mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
+    });
+
     app = await createApp({
-      getBooks: vi.fn().mockResolvedValue({
-        items: [],
-        pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
-      }),
+      getBooks,
       getBookBySlug: vi.fn(),
     });
 
@@ -33,16 +35,55 @@ describe("Catalog API", () => {
       total: 0,
       totalPages: 0,
     });
+    expect(getBooks).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 20,
+    });
   });
 
-  it("rejects a page size above the limit", async () => {
+  it("normalizes catalog query parameters before calling the service", async () => {
+    const getBooks = vi.fn().mockResolvedValue({
+      items: [],
+      pagination: { page: 2, pageSize: 25, total: 0, totalPages: 0 },
+    });
+
     app = await createApp({
-      getBooks: vi.fn(),
+      getBooks,
       getBookBySlug: vi.fn(),
     });
 
-    await request(app.getHttpServer()).get("/api/v1/books?pageSize=101").expect(400);
+    await request(app.getHttpServer())
+      .get("/api/v1/books?page=%202%20&pageSize=%2025%20&category=%20fiction%20")
+      .expect(200);
+
+    expect(getBooks).toHaveBeenCalledWith({
+      page: 2,
+      pageSize: 25,
+      category: "fiction",
+    });
   });
+
+  it.each(["/api/v1/books?page=0", "/api/v1/books?page=1.5", "/api/v1/books?pageSize=101"])(
+    "rejects an invalid catalog query: %s",
+    async (url) => {
+      const getBooks = vi.fn();
+
+      app = await createApp({
+        getBooks,
+        getBookBySlug: vi.fn(),
+      });
+
+      const response = await request(app.getHttpServer()).get(url).expect(400);
+
+      expect(response.body).toMatchObject({
+        code: "VALIDATION_ERROR",
+        message: expect.any(String),
+        requestId: expect.any(String),
+        details: [],
+      });
+      expect(getBooks).not.toHaveBeenCalled();
+    },
+  );
 
   async function createApp(catalog: {
     getBooks: ReturnType<typeof vi.fn>;
