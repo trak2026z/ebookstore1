@@ -1,9 +1,19 @@
-import { Body, Controller, Inject, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Post,
+} from "@nestjs/common";
 
 import { AuthService } from "./auth.service";
-// Runtime import is required for Nest validation metadata.
+// Runtime imports are required for Nest validation metadata.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { LoginDto } from "./dto/login.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { RegisterDto } from "./dto/register.dto";
+import type { LoginResponse } from "./login-response";
 import type { UserResponse } from "./user-response";
 
 @Controller("auth")
@@ -16,5 +26,11 @@ export class AuthController {
   @Post("register")
   register(@Body() dto: RegisterDto): Promise<UserResponse> {
     return this.authService.register(dto);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post("login")
+  login(@Body() dto: LoginDto): Promise<LoginResponse> {
+    return this.authService.login(dto);
   }
 }
