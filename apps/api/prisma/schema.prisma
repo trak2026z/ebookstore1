@@ -8,6 +8,24 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(320)
+  passwordHash String   @db.VarChar(255)
+  displayName  String?  @db.VarChar(120)
+  role         UserRole @default(USER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
 model SystemMetadata {
   key       String   @id @db.VarChar(100)
   value     String
@@ -24,6 +42,7 @@ model Author {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([name], map: "authors_name_idx")
   @@map("authors")
 }
 
@@ -56,5 +75,7 @@ model Book {
 
   @@index([authorId])
   @@index([categoryId, isActive])
+  @@index([isActive, createdAt(sort: Desc), id], map: "books_active_created_at_id_idx")
+  @@index([authorId, isActive, createdAt(sort: Desc), id], map: "books_author_active_created_at_id_idx")
   @@map("books")
 }

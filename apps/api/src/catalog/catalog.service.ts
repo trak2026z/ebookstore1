@@ -1,6 +1,12 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 
-import type { BookDetailsResponse, BookListItem, BookListResponse } from "@ebookstore/contracts";
+import type {
+  AuthorListResponse,
+  BookDetailsResponse,
+  BookListItem,
+  BookListResponse,
+  CategoryListResponse,
+} from "@ebookstore/contracts";
 
 import { DatabaseService } from "../database/database.service";
 import type { Prisma } from "../generated/prisma/client.js";
@@ -39,6 +45,30 @@ export class CatalogService {
     @Inject(DatabaseService)
     private readonly database: DatabaseService,
   ) {}
+
+  async getAuthors(): Promise<AuthorListResponse> {
+    const authors = await this.database.prisma.author.findMany({
+      select: {
+        name: true,
+        slug: true,
+      },
+      orderBy: [{ name: "asc" }, { slug: "asc" }],
+    });
+
+    return { items: authors };
+  }
+
+  async getCategories(): Promise<CategoryListResponse> {
+    const categories = await this.database.prisma.category.findMany({
+      select: {
+        name: true,
+        slug: true,
+      },
+      orderBy: [{ name: "asc" }, { slug: "asc" }],
+    });
+
+    return { items: categories };
+  }
 
   async getBooks(query: GetBooksQuery): Promise<BookListResponse> {
     const where = {
