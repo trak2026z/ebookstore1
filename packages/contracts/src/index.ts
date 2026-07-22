@@ -56,3 +56,25 @@ export interface BookListResponse {
     readonly totalPages: number;
   };
 }
+
+export type AdminUserRole = "USER" | "ADMIN";
+
+export interface AdminUserListItem {
+  readonly id: string;
+  readonly email: string;
+  readonly displayName: string | null;
+  readonly role: AdminUserRole;
+  readonly isActive: boolean;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface AdminUserListResponse {
+  readonly items: readonly AdminUserListItem[];
+  readonly pagination: {
+    readonly page: number;
+    readonly pageSize: number;
+    readonly total: number;
+    readonly totalPages: number;
+  };
+}
