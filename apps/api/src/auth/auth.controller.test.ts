@@ -1,19 +1,8 @@
-import type {
-  CanActivate,
-  ExecutionContext,
-  INestApplication,
-} from "@nestjs/common";
+import type { CanActivate, ExecutionContext, INestApplication } from "@nestjs/common";
 import { ValidationPipe } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
@@ -49,9 +38,9 @@ describe("AuthController", () => {
         },
       ],
     })
-  .overrideGuard(JwtAuthGuard)
-  .useValue(jwtAuthGuard)
-  .compile();
+      .overrideGuard(JwtAuthGuard)
+      .useValue(jwtAuthGuard)
+      .compile();
 
     app = testingModule.createNestApplication();
     app.setGlobalPrefix("api/v1");
@@ -81,15 +70,11 @@ describe("AuthController", () => {
         email: "user@example.com",
         displayName: "Tomasz",
         role: "USER",
-        createdAt: new Date(
-          "2026-07-22T10:00:00.000Z",
-        ),
+        createdAt: new Date("2026-07-22T10:00:00.000Z"),
       },
     });
 
-    const response = await request(
-      app.getHttpServer(),
-    )
+    const response = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
       .send({
         email: " USER@Example.com ",
@@ -105,9 +90,7 @@ describe("AuthController", () => {
         email: "user@example.com",
       },
     });
-    expect(
-      authService.login,
-    ).toHaveBeenCalledWith({
+    expect(authService.login).toHaveBeenCalledWith({
       email: "user@example.com",
       password: "Correct-Horse-42",
     });
@@ -122,9 +105,7 @@ describe("AuthController", () => {
       })
       .expect(400);
 
-    expect(
-      authService.login,
-    ).not.toHaveBeenCalled();
+    expect(authService.login).not.toHaveBeenCalled();
   });
 
   it("rejects unknown request properties", async () => {
@@ -137,11 +118,8 @@ describe("AuthController", () => {
       })
       .expect(400);
 
-    expect(
-      authService.login,
-    ).not.toHaveBeenCalled();
+    expect(authService.login).not.toHaveBeenCalled();
   });
-
 
   it("returns the current user for an authenticated request", async () => {
     const response = await request(app.getHttpServer())

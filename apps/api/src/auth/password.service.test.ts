@@ -11,8 +11,6 @@ describe("PasswordService", () => {
 
     expect(passwordHash).not.toBe(password);
     await expect(service.verify(passwordHash, password)).resolves.toBe(true);
-    await expect(service.verify(passwordHash, "wrong-password")).resolves.toBe(
-      false,
-    );
+    await expect(service.verify(passwordHash, "wrong-password")).resolves.toBe(false);
   });
 });

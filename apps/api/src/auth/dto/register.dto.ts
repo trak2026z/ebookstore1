@@ -1,11 +1,5 @@
 import { Transform } from "class-transformer";
-import {
-  IsEmail,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-} from "class-validator";
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 
 export class RegisterDto {
   @Transform(({ value }: { value: unknown }) =>
@@ -20,9 +14,7 @@ export class RegisterDto {
   @MaxLength(128)
   password!: string;
 
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === "string" ? value.trim() : value,
-  )
+  @Transform(({ value }: { value: unknown }) => (typeof value === "string" ? value.trim() : value))
   @IsOptional()
   @IsString()
   @MinLength(1)

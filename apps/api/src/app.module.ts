@@ -8,13 +8,6 @@ import { HealthModule } from "./health/health.module";
 import { ReadinessModule } from "./readiness/readiness.module";
 
 @Module({
-  imports: [
-    ConfigModule,
-    DatabaseModule,
-    HealthModule,
-    ReadinessModule,
-    CatalogModule,
-    AuthModule,
-  ],
+  imports: [ConfigModule, DatabaseModule, HealthModule, ReadinessModule, CatalogModule, AuthModule],
 })
 export class AppModule {}

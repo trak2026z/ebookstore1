@@ -34,9 +34,7 @@ export class UsersService {
         email: input.email,
         passwordHash: input.passwordHash,
         role: "USER",
-        ...(input.displayName === undefined
-          ? {}
-          : { displayName: input.displayName }),
+        ...(input.displayName === undefined ? {} : { displayName: input.displayName }),
       },
     }) as Promise<UserRecord>;
   }

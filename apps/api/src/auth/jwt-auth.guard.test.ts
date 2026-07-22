@@ -1,7 +1,4 @@
-import {
-  type ExecutionContext,
-  UnauthorizedException,
-} from "@nestjs/common";
+import { type ExecutionContext, UnauthorizedException } from "@nestjs/common";
 import type { JwtService } from "@nestjs/jwt";
 import type { Request } from "express";
 import { describe, expect, it, vi } from "vitest";
@@ -53,29 +50,24 @@ describe("JwtAuthGuard", () => {
     });
     subject.usersService.findById.mockResolvedValue(user);
 
-    await expect(
-      subject.guard.canActivate(subject.context),
-    ).resolves.toBe(true);
-    expect(subject.usersService.findById).toHaveBeenCalledWith(
-      user.id,
-    );
-    expect(
-      (subject.request as Request & { user?: unknown }).user,
-    ).toMatchObject({ id: user.id, email: user.email });
+    await expect(subject.guard.canActivate(subject.context)).resolves.toBe(true);
+    expect(subject.usersService.findById).toHaveBeenCalledWith(user.id);
+    expect((subject.request as Request & { user?: unknown }).user).toMatchObject({
+      id: user.id,
+      email: user.email,
+    });
   });
 
-  it.each([
-    undefined,
-    "Basic token",
-    "Bearer",
-    "Bearer token extra",
-  ])("rejects malformed authorization %j", async (header) => {
-    const subject = setup(header);
+  it.each([undefined, "Basic token", "Bearer", "Bearer token extra"])(
+    "rejects malformed authorization %j",
+    async (header) => {
+      const subject = setup(header);
 
-    await expect(
-      subject.guard.canActivate(subject.context),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
-  });
+      await expect(subject.guard.canActivate(subject.context)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+    },
+  );
 
   it.each([
     { payload: null, storedUser: user },
@@ -93,17 +85,17 @@ describe("JwtAuthGuard", () => {
     subject.jwtService.verifyAsync.mockResolvedValue(payload);
     subject.usersService.findById.mockResolvedValue(storedUser);
 
-    await expect(
-      subject.guard.canActivate(subject.context),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(subject.guard.canActivate(subject.context)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it("rejects failed JWT verification", async () => {
     const subject = setup("Bearer token");
     subject.jwtService.verifyAsync.mockRejectedValue(new Error());
 
-    await expect(
-      subject.guard.canActivate(subject.context),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(subject.guard.canActivate(subject.context)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 });
