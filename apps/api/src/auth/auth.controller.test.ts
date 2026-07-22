@@ -1,4 +1,8 @@
-import type { INestApplication } from "@nestjs/common";
+import type {
+  CanActivate,
+  ExecutionContext,
+  INestApplication,
+} from "@nestjs/common";
 import { ValidationPipe } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
@@ -13,25 +17,41 @@ import {
 
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { JwtAuthGuard } from "./jwt-auth.guard";
 
 describe("AuthController", () => {
-  let app: INestApplication;
+  let app: INestApplication | undefined;
   const authService = {
     register: vi.fn(),
     login: vi.fn(),
   };
+  const currentUser = {
+    id: "user-id",
+    email: "user@example.com",
+    displayName: "Tomasz",
+    role: "USER",
+    createdAt: new Date("2026-07-22T10:00:00.000Z"),
+  };
+  const jwtAuthGuard: CanActivate = {
+    canActivate(context: ExecutionContext): boolean {
+      context.switchToHttp().getRequest().user = currentUser;
+      return true;
+    },
+  };
 
   beforeEach(async () => {
-    const testingModule =
-      await Test.createTestingModule({
-        controllers: [AuthController],
-        providers: [
-          {
-            provide: AuthService,
-            useValue: authService,
-          },
-        ],
-      }).compile();
+    const testingModule = await Test.createTestingModule({
+      controllers: [AuthController],
+      providers: [
+        {
+          provide: AuthService,
+          useValue: authService,
+        },
+      ],
+    })
+  .overrideGuard(JwtAuthGuard)
+  .useValue(jwtAuthGuard)
+  .compile();
 
     app = testingModule.createNestApplication();
     app.setGlobalPrefix("api/v1");
@@ -47,7 +67,8 @@ describe("AuthController", () => {
 
   afterEach(async () => {
     vi.clearAllMocks();
-    await app.close();
+    await app?.close();
+    app = undefined;
   });
 
   it("returns HTTP 200 and the login response", async () => {
@@ -119,5 +140,20 @@ describe("AuthController", () => {
     expect(
       authService.login,
     ).not.toHaveBeenCalled();
+  });
+
+
+  it("returns the current user for an authenticated request", async () => {
+    const response = await request(app.getHttpServer())
+      .get("/api/v1/auth/me")
+      .set("Authorization", "Bearer valid-token")
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      id: currentUser.id,
+      email: currentUser.email,
+      displayName: currentUser.displayName,
+      role: currentUser.role,
+    });
   });
 });

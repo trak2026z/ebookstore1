@@ -22,6 +22,12 @@ export class UsersService {
     }) as Promise<UserRecord | null>;
   }
 
+  findById(id: string): Promise<UserRecord | null> {
+    return this.database.prisma.user.findUnique({
+      where: { id },
+    }) as Promise<UserRecord | null>;
+  }
+
   create(input: CreateUserInput): Promise<UserRecord> {
     return this.database.prisma.user.create({
       data: {
