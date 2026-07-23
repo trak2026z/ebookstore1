@@ -352,4 +352,183 @@ describe("AdminUsersService", () => {
     });
     expect(response.role).toBe("USER");
   });
+  it("deactivates a user and returns a safe response", async () => {
+    findUnique.mockResolvedValue({
+      id: "user-1",
+      email: "user@example.com",
+      displayName: "Example User",
+      role: "USER",
+      isActive: true,
+      createdAt: new Date("2026-07-20T10:00:00.000Z"),
+      updatedAt: new Date("2026-07-21T11:00:00.000Z"),
+    });
+    update.mockResolvedValue({
+      id: "user-1",
+      email: "user@example.com",
+      displayName: "Example User",
+      role: "USER",
+      isActive: false,
+      passwordHash: "must-not-leak",
+      createdAt: new Date("2026-07-20T10:00:00.000Z"),
+      updatedAt: new Date("2026-07-23T12:00:00.000Z"),
+    });
+
+    const response = await service.updateUserStatus({
+      userId: "user-1",
+      isActive: false,
+    });
+
+    expect(transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "Serializable",
+    });
+    expect(count).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith({
+      where: {
+        id: "user-1",
+      },
+      data: {
+        isActive: false,
+      },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    expect(response).toEqual({
+      id: "user-1",
+      email: "user@example.com",
+      displayName: "Example User",
+      role: "USER",
+      isActive: false,
+      createdAt: "2026-07-20T10:00:00.000Z",
+      updatedAt: "2026-07-23T12:00:00.000Z",
+    });
+    expect(response).not.toHaveProperty("passwordHash");
+  });
+
+  it("returns the existing user without writing when the status is unchanged", async () => {
+    findUnique.mockResolvedValue({
+      id: "user-1",
+      email: "user@example.com",
+      displayName: "Example User",
+      role: "USER",
+      isActive: false,
+      createdAt: new Date("2026-07-20T10:00:00.000Z"),
+      updatedAt: new Date("2026-07-21T11:00:00.000Z"),
+    });
+
+    const response = await service.updateUserStatus({
+      userId: "user-1",
+      isActive: false,
+    });
+
+    expect(count).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(response.isActive).toBe(false);
+  });
+
+  it("throws a not-found exception when updating the status of a missing user", async () => {
+    findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.updateUserStatus({
+        userId: "missing-user",
+        isActive: false,
+      }),
+    ).rejects.toMatchObject({
+      status: 404,
+      message: "User not found",
+    });
+
+    expect(count).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("prevents deactivating the last active administrator", async () => {
+    findUnique.mockResolvedValue({
+      id: "admin-1",
+      email: "admin@example.com",
+      displayName: "Administrator",
+      role: "ADMIN",
+      isActive: true,
+      createdAt: new Date("2026-07-20T10:00:00.000Z"),
+      updatedAt: new Date("2026-07-21T11:00:00.000Z"),
+    });
+    count.mockResolvedValue(1);
+
+    await expect(
+      service.updateUserStatus({
+        userId: "admin-1",
+        isActive: false,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "Cannot deactivate the last active administrator",
+    });
+
+    expect(count).toHaveBeenCalledWith({
+      where: {
+        role: "ADMIN",
+        isActive: true,
+      },
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("allows deactivating an administrator when another active administrator exists", async () => {
+    findUnique.mockResolvedValue({
+      id: "admin-1",
+      email: "admin@example.com",
+      displayName: "Administrator",
+      role: "ADMIN",
+      isActive: true,
+      createdAt: new Date("2026-07-20T10:00:00.000Z"),
+      updatedAt: new Date("2026-07-21T11:00:00.000Z"),
+    });
+    count.mockResolvedValue(2);
+    update.mockResolvedValue({
+      id: "admin-1",
+      email: "admin@example.com",
+      displayName: "Administrator",
+      role: "ADMIN",
+      isActive: false,
+      createdAt: new Date("2026-07-20T10:00:00.000Z"),
+      updatedAt: new Date("2026-07-23T12:00:00.000Z"),
+    });
+
+    const response = await service.updateUserStatus({
+      userId: "admin-1",
+      isActive: false,
+    });
+
+    expect(count).toHaveBeenCalledWith({
+      where: {
+        role: "ADMIN",
+        isActive: true,
+      },
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: {
+        id: "admin-1",
+      },
+      data: {
+        isActive: false,
+      },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    expect(response.isActive).toBe(false);
+  });
 });

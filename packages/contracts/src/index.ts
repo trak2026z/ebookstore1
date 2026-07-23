@@ -82,3 +82,7 @@ export interface AdminUserListResponse {
 export interface UpdateAdminUserRoleRequest {
   readonly role: AdminUserRole;
 }
+
+export interface UpdateAdminUserStatusRequest {
+  readonly isActive: boolean;
+}

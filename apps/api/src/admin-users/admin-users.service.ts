@@ -18,6 +18,11 @@ export interface UpdateAdminUserRoleInput {
   readonly role: AdminUserRole;
 }
 
+export interface UpdateAdminUserStatusInput {
+  readonly userId: string;
+  readonly isActive: boolean;
+}
+
 const ADMIN_USER_SELECT = {
   id: true,
   email: true,
@@ -126,6 +131,49 @@ export class AdminUsersService {
         const updatedUser = await transaction.user.update({
           where: { id: input.userId },
           data: { role: input.role },
+          select: ADMIN_USER_SELECT,
+        });
+
+        return toAdminUserListItem(updatedUser);
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+  }
+
+  async updateUserStatus(input: UpdateAdminUserStatusInput): Promise<AdminUserListItem> {
+    return this.database.prisma.$transaction(
+      async (transaction) => {
+        const user = await transaction.user.findUnique({
+          where: { id: input.userId },
+          select: ADMIN_USER_SELECT,
+        });
+
+        if (user === null) {
+          throw new NotFoundException("User not found");
+        }
+
+        if (user.isActive === input.isActive) {
+          return toAdminUserListItem(user);
+        }
+
+        if (user.role === "ADMIN" && user.isActive && input.isActive === false) {
+          const activeAdminCount = await transaction.user.count({
+            where: {
+              role: "ADMIN",
+              isActive: true,
+            },
+          });
+
+          if (activeAdminCount <= 1) {
+            throw new ConflictException("Cannot deactivate the last active administrator");
+          }
+        }
+
+        const updatedUser = await transaction.user.update({
+          where: { id: input.userId },
+          data: { isActive: input.isActive },
           select: ADMIN_USER_SELECT,
         });
 
