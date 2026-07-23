@@ -1,6 +1,10 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 
-import type { AdminUserListResponse } from "@ebookstore/contracts";
+import type {
+  AdminUserListItem,
+  AdminUserListResponse,
+  AdminUserRole,
+} from "@ebookstore/contracts";
 
 import { DatabaseService } from "../database/database.service";
 
@@ -18,6 +22,28 @@ const ADMIN_USER_SELECT = {
   createdAt: true,
   updatedAt: true,
 } as const;
+
+interface SelectedAdminUser {
+  readonly id: string;
+  readonly email: string;
+  readonly displayName: string | null;
+  readonly role: AdminUserRole;
+  readonly isActive: boolean;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+}
+
+function toAdminUserListItem(user: SelectedAdminUser): AdminUserListItem {
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    role: user.role,
+    isActive: user.isActive,
+    createdAt: user.createdAt.toISOString(),
+    updatedAt: user.updatedAt.toISOString(),
+  };
+}
 
 @Injectable()
 export class AdminUsersService {
@@ -40,15 +66,7 @@ export class AdminUsersService {
     ]);
 
     return {
-      items: users.map((user) => ({
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        role: user.role,
-        isActive: user.isActive,
-        createdAt: user.createdAt.toISOString(),
-        updatedAt: user.updatedAt.toISOString(),
-      })),
+      items: users.map(toAdminUserListItem),
       pagination: {
         page: input.page,
         pageSize: input.pageSize,
@@ -56,5 +74,18 @@ export class AdminUsersService {
         totalPages: Math.ceil(total / input.pageSize),
       },
     };
+  }
+
+  async getUserById(id: string): Promise<AdminUserListItem> {
+    const user = await this.database.prisma.user.findUnique({
+      where: { id },
+      select: ADMIN_USER_SELECT,
+    });
+
+    if (user === null) {
+      throw new NotFoundException("User not found");
+    }
+
+    return toAdminUserListItem(user);
   }
 }

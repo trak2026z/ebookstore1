@@ -5,12 +5,14 @@ import { AdminUsersService } from "./admin-users.service";
 
 describe("AdminUsersService", () => {
   const findMany = vi.fn();
+  const findUnique = vi.fn();
   const count = vi.fn();
 
   const database = {
     prisma: {
       user: {
         findMany,
+        findUnique,
         count,
       },
     },
@@ -100,6 +102,57 @@ describe("AdminUsersService", () => {
         total: 0,
         totalPages: 0,
       },
+    });
+  });
+
+  it("returns a user by ID without exposing the password hash", async () => {
+    findUnique.mockResolvedValue({
+      id: "user-1",
+      email: "user@example.com",
+      displayName: "Example User",
+      role: "USER",
+      isActive: true,
+      passwordHash: "must-not-leak",
+      createdAt: new Date("2026-07-20T10:00:00.000Z"),
+      updatedAt: new Date("2026-07-21T11:00:00.000Z"),
+    });
+
+    const response = await service.getUserById("user-1");
+
+    expect(findUnique).toHaveBeenCalledWith({
+      where: {
+        id: "user-1",
+      },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    expect(response).toEqual({
+      id: "user-1",
+      email: "user@example.com",
+      displayName: "Example User",
+      role: "USER",
+      isActive: true,
+      createdAt: "2026-07-20T10:00:00.000Z",
+      updatedAt: "2026-07-21T11:00:00.000Z",
+    });
+
+    expect(response).not.toHaveProperty("passwordHash");
+  });
+
+  it("throws a not-found exception when the user does not exist", async () => {
+    findUnique.mockResolvedValue(null);
+
+    await expect(service.getUserById("missing-user")).rejects.toMatchObject({
+      status: 404,
+      message: "User not found",
     });
   });
 });
