@@ -1,8 +1,9 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import * as argon2 from "argon2";
 
+import { seedCatalog } from "../src/catalog/catalog-seed.js";
 import { PrismaClient } from "../src/generated/prisma/client.js";
-import { BookFormat, BookStatus, UserRole } from "../src/generated/prisma/enums.js";
+import { UserRole } from "../src/generated/prisma/enums.js";
 import { normalizeEmail } from "../src/users/normalize-email.js";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -90,97 +91,7 @@ async function seedAdministrator(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const category = await prisma.category.upsert({
-    where: { slug: "programowanie" },
-    update: {
-      name: "Programowanie",
-      description: "E-booki o programowaniu, architekturze i narzędziach developerskich.",
-    },
-    create: {
-      name: "Programowanie",
-      slug: "programowanie",
-      description: "E-booki o programowaniu, architekturze i narzędziach developerskich.",
-    },
-  });
-
-  const author = await prisma.author.upsert({
-    where: { slug: "marcin-kowalski" },
-    update: {
-      name: "Marcin Kowalski",
-      displayName: "Marcin Kowalski",
-      firstName: "Marcin",
-      lastName: "Kowalski",
-      biography: "Autor materiałów o TypeScript i projektowaniu bezpiecznych aplikacji.",
-    },
-    create: {
-      name: "Marcin Kowalski",
-      displayName: "Marcin Kowalski",
-      firstName: "Marcin",
-      lastName: "Kowalski",
-      biography: "Autor materiałów o TypeScript i projektowaniu bezpiecznych aplikacji.",
-      slug: "marcin-kowalski",
-    },
-  });
-
-  const book = await prisma.book.upsert({
-    where: { slug: "typescript-w-praktyce" },
-    update: {
-      title: "TypeScript w praktyce",
-      isbn: "9780000000002",
-      description: "Praktyczne wzorce tworzenia bezpiecznych aplikacji TypeScript.",
-      priceMinor: 7990,
-      currency: "PLN",
-      status: BookStatus.PUBLISHED,
-      format: BookFormat.EPUB,
-      publishedAt: new Date("2026-07-17T00:00:00.000Z"),
-    },
-    create: {
-      title: "TypeScript w praktyce",
-      slug: "typescript-w-praktyce",
-      isbn: "9780000000002",
-      description: "Praktyczne wzorce tworzenia bezpiecznych aplikacji TypeScript.",
-      priceMinor: 7990,
-      currency: "PLN",
-      status: BookStatus.PUBLISHED,
-      format: BookFormat.EPUB,
-      publishedAt: new Date("2026-07-17T00:00:00.000Z"),
-    },
-  });
-
-  await prisma.bookAuthor.upsert({
-    where: {
-      bookId_authorId: {
-        bookId: book.id,
-        authorId: author.id,
-      },
-    },
-    update: {
-      position: 0,
-    },
-    create: {
-      bookId: book.id,
-      authorId: author.id,
-      position: 0,
-    },
-  });
-
-  await prisma.bookCategory.upsert({
-    where: {
-      bookId_categoryId: {
-        bookId: book.id,
-        categoryId: category.id,
-      },
-    },
-    update: {
-      position: 0,
-    },
-    create: {
-      bookId: book.id,
-      categoryId: category.id,
-      position: 0,
-    },
-  });
-
+  await seedCatalog(prisma);
   await seedAdministrator();
 }
 
