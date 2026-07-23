@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from "@nestjs/common";
 
 import type {
   AuthorListResponse,
@@ -29,14 +34,18 @@ interface BookWithRelations {
   readonly coverUrl: string | null;
   readonly description: string;
   readonly publishedAt: Date | null;
-  readonly author: {
-    readonly displayName: string;
-    readonly slug: string;
-  };
-  readonly category: {
-    readonly name: string;
-    readonly slug: string;
-  };
+  readonly authors: readonly {
+    readonly author: {
+      readonly displayName: string;
+      readonly slug: string;
+    };
+  }[];
+  readonly categories: readonly {
+    readonly category: {
+      readonly name: string;
+      readonly slug: string;
+    };
+  }[];
 }
 
 @Injectable()
@@ -78,8 +87,28 @@ export class CatalogService {
   async getBooks(query: GetBooksQuery): Promise<BookListResponse> {
     const where = {
       status: "PUBLISHED",
-      ...(query.category === undefined ? {} : { category: { slug: query.category } }),
-      ...(query.author === undefined ? {} : { author: { is: { slug: query.author } } }),
+      ...(query.category === undefined
+        ? {}
+        : {
+            categories: {
+              some: {
+                category: {
+                  slug: query.category,
+                },
+              },
+            },
+          }),
+      ...(query.author === undefined
+        ? {}
+        : {
+            authors: {
+              some: {
+                author: {
+                  slug: query.author,
+                },
+              },
+            },
+          }),
       ...(query.q === undefined
         ? {}
         : {
@@ -91,11 +120,13 @@ export class CatalogService {
                 },
               },
               {
-                author: {
-                  is: {
-                    displayName: {
-                      contains: query.q,
-                      mode: "insensitive",
+                authors: {
+                  some: {
+                    author: {
+                      displayName: {
+                        contains: query.q,
+                        mode: "insensitive",
+                      },
                     },
                   },
                 },
@@ -147,21 +178,35 @@ export class CatalogService {
   }
 }
 
-function getPublicBookRelations() {
-  return {
-    author: {
-      select: {
-        displayName: true,
-        slug: true,
+const PUBLIC_BOOK_RELATIONS = {
+  authors: {
+    select: {
+      author: {
+        select: {
+          displayName: true,
+          slug: true,
+        },
       },
     },
-    category: {
-      select: {
-        name: true,
-        slug: true,
+    orderBy: [{ position: "asc" }, { authorId: "asc" }],
+    take: 1,
+  },
+  categories: {
+    select: {
+      category: {
+        select: {
+          name: true,
+          slug: true,
+        },
       },
     },
-  } as const;
+    orderBy: [{ position: "asc" }, { categoryId: "asc" }],
+    take: 1,
+  },
+} satisfies Prisma.BookInclude;
+
+function getPublicBookRelations(): typeof PUBLIC_BOOK_RELATIONS {
+  return PUBLIC_BOOK_RELATIONS;
 }
 
 function getBookOrderBy(sort: CatalogSort | undefined): Prisma.BookOrderByWithRelationInput[] {
@@ -181,6 +226,17 @@ function getBookOrderBy(sort: CatalogSort | undefined): Prisma.BookOrderByWithRe
 }
 
 function mapBook(book: BookWithRelations): BookListItem {
+  const primaryAuthor = book.authors[0]?.author;
+  const primaryCategory = book.categories[0]?.category;
+
+  if (primaryAuthor === undefined) {
+    throw new InternalServerErrorException("Published book has no author relation.");
+  }
+
+  if (primaryCategory === undefined) {
+    throw new InternalServerErrorException("Published book has no category relation.");
+  }
+
   return {
     id: book.id,
     title: book.title,
@@ -191,12 +247,12 @@ function mapBook(book: BookWithRelations): BookListItem {
     priceCents: book.priceMinor,
     coverUrl: book.coverUrl,
     author: {
-      name: book.author.displayName,
-      slug: book.author.slug,
+      name: primaryAuthor.displayName,
+      slug: primaryAuthor.slug,
     },
     category: {
-      name: book.category.name,
-      slug: book.category.slug,
+      name: primaryCategory.name,
+      slug: primaryCategory.slug,
     },
   };
 }

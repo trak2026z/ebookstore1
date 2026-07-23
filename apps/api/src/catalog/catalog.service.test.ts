@@ -5,17 +5,29 @@ import type { CatalogSort } from "./catalog-query";
 import { CatalogService } from "./catalog.service";
 
 const PUBLIC_BOOK_RELATIONS = {
-  author: {
+  authors: {
     select: {
-      displayName: true,
-      slug: true,
+      author: {
+        select: {
+          displayName: true,
+          slug: true,
+        },
+      },
     },
+    orderBy: [{ position: "asc" }, { authorId: "asc" }],
+    take: 1,
   },
-  category: {
+  categories: {
     select: {
-      name: true,
-      slug: true,
+      category: {
+        select: {
+          name: true,
+          slug: true,
+        },
+      },
     },
+    orderBy: [{ position: "asc" }, { categoryId: "asc" }],
+    take: 1,
   },
 } as const;
 
@@ -79,7 +91,7 @@ describe("CatalogService", () => {
     });
   });
 
-  it("filters books by author slug", async () => {
+  it("filters books through the author join table", async () => {
     const { database, findMany, count } = createDatabaseMock();
     const service = new CatalogService(database);
 
@@ -91,7 +103,13 @@ describe("CatalogService", () => {
 
     const expectedWhere = {
       status: "PUBLISHED",
-      author: { is: { slug: "ursula-le-guin" } },
+      authors: {
+        some: {
+          author: {
+            slug: "ursula-le-guin",
+          },
+        },
+      },
     };
 
     expect(findMany).toHaveBeenCalledWith(
@@ -106,7 +124,7 @@ describe("CatalogService", () => {
     });
   });
 
-  it("combines author, category and text filters", async () => {
+  it("combines many-to-many author, category and text filters", async () => {
     const { database, findMany, count } = createDatabaseMock();
     const service = new CatalogService(database);
 
@@ -120,8 +138,20 @@ describe("CatalogService", () => {
 
     const expectedWhere = {
       status: "PUBLISHED",
-      category: { slug: "science-fiction" },
-      author: { is: { slug: "ursula-le-guin" } },
+      categories: {
+        some: {
+          category: {
+            slug: "science-fiction",
+          },
+        },
+      },
+      authors: {
+        some: {
+          author: {
+            slug: "ursula-le-guin",
+          },
+        },
+      },
       OR: [
         {
           title: {
@@ -130,11 +160,13 @@ describe("CatalogService", () => {
           },
         },
         {
-          author: {
-            is: {
-              displayName: {
-                contains: "earthsea",
-                mode: "insensitive",
+          authors: {
+            some: {
+              author: {
+                displayName: {
+                  contains: "earthsea",
+                  mode: "insensitive",
+                },
               },
             },
           },
@@ -154,7 +186,7 @@ describe("CatalogService", () => {
     });
   });
 
-  it("uses explicit public relation projections for book lists", async () => {
+  it("loads only the primary public relations in a stable order", async () => {
     const { database, findMany } = createDatabaseMock();
     const service = new CatalogService(database);
 
@@ -170,30 +202,9 @@ describe("CatalogService", () => {
     );
   });
 
-  it("keeps the public price and relation response compatible", async () => {
+  it("keeps the singular public relation response compatible", async () => {
     const { database, transaction } = createDatabaseMock();
-    transaction.mockResolvedValue([
-      [
-        {
-          id: "book-id",
-          title: "TypeScript w praktyce",
-          slug: "typescript-w-praktyce",
-          priceMinor: 7990,
-          coverUrl: null,
-          description: "Opis",
-          publishedAt: new Date("2026-07-17T00:00:00.000Z"),
-          author: {
-            displayName: "Marcin Kowalski",
-            slug: "marcin-kowalski",
-          },
-          category: {
-            name: "Programowanie",
-            slug: "programowanie",
-          },
-        },
-      ],
-      1,
-    ]);
+    transaction.mockResolvedValue([[createBookWithRelations()], 1]);
     const service = new CatalogService(database);
 
     await expect(
@@ -226,6 +237,48 @@ describe("CatalogService", () => {
         totalPages: 1,
       },
     });
+  });
+
+  it("fails closed when a published book has no author relation", async () => {
+    const { database, transaction } = createDatabaseMock();
+    transaction.mockResolvedValue([
+      [
+        {
+          ...createBookWithRelations(),
+          authors: [],
+        },
+      ],
+      1,
+    ]);
+    const service = new CatalogService(database);
+
+    await expect(
+      service.getBooks({
+        page: 1,
+        pageSize: 20,
+      }),
+    ).rejects.toThrow("Published book has no author relation.");
+  });
+
+  it("fails closed when a published book has no category relation", async () => {
+    const { database, transaction } = createDatabaseMock();
+    transaction.mockResolvedValue([
+      [
+        {
+          ...createBookWithRelations(),
+          categories: [],
+        },
+      ],
+      1,
+    ]);
+    const service = new CatalogService(database);
+
+    await expect(
+      service.getBooks({
+        page: 1,
+        pageSize: 20,
+      }),
+    ).rejects.toThrow("Published book has no category relation.");
   });
 
   it("loads details only for a published book", async () => {
@@ -271,6 +324,34 @@ describe("CatalogService", () => {
     },
   );
 });
+
+function createBookWithRelations() {
+  return {
+    id: "book-id",
+    title: "TypeScript w praktyce",
+    slug: "typescript-w-praktyce",
+    priceMinor: 7990,
+    coverUrl: null,
+    description: "Opis",
+    publishedAt: new Date("2026-07-17T00:00:00.000Z"),
+    authors: [
+      {
+        author: {
+          displayName: "Marcin Kowalski",
+          slug: "marcin-kowalski",
+        },
+      },
+    ],
+    categories: [
+      {
+        category: {
+          name: "Programowanie",
+          slug: "programowanie",
+        },
+      },
+    ],
+  };
+}
 
 function createDatabaseMock(): {
   readonly database: DatabaseService;

@@ -122,7 +122,7 @@ async function main(): Promise<void> {
     },
   });
 
-  await prisma.book.upsert({
+  const book = await prisma.book.upsert({
     where: { slug: "typescript-w-praktyce" },
     update: {
       title: "TypeScript w praktyce",
@@ -133,8 +133,6 @@ async function main(): Promise<void> {
       status: BookStatus.PUBLISHED,
       format: BookFormat.EPUB,
       publishedAt: new Date("2026-07-17T00:00:00.000Z"),
-      authorId: author.id,
-      categoryId: category.id,
     },
     create: {
       title: "TypeScript w praktyce",
@@ -146,8 +144,40 @@ async function main(): Promise<void> {
       status: BookStatus.PUBLISHED,
       format: BookFormat.EPUB,
       publishedAt: new Date("2026-07-17T00:00:00.000Z"),
+    },
+  });
+
+  await prisma.bookAuthor.upsert({
+    where: {
+      bookId_authorId: {
+        bookId: book.id,
+        authorId: author.id,
+      },
+    },
+    update: {
+      position: 0,
+    },
+    create: {
+      bookId: book.id,
       authorId: author.id,
+      position: 0,
+    },
+  });
+
+  await prisma.bookCategory.upsert({
+    where: {
+      bookId_categoryId: {
+        bookId: book.id,
+        categoryId: category.id,
+      },
+    },
+    update: {
+      position: 0,
+    },
+    create: {
+      bookId: book.id,
       categoryId: category.id,
+      position: 0,
     },
   });
 
