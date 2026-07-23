@@ -1,4 +1,14 @@
-import { Controller, Get, Inject, Param, ParseUUIDPipe, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 
 import type { AdminUserListItem, AdminUserListResponse } from "@ebookstore/contracts";
 
@@ -9,6 +19,9 @@ import { AdminUsersService } from "./admin-users.service";
 // Runtime import is required for Nest validation metadata.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ListAdminUsersQueryDto } from "./dto/list-admin-users-query.dto";
+// Runtime import is required for Nest validation metadata.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateAdminUserRoleDto } from "./dto/update-admin-user-role.dto";
 
 @Controller("admin/users")
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -32,5 +45,16 @@ export class AdminUsersController {
     @Param("id", new ParseUUIDPipe({ version: "4" })) id: string,
   ): Promise<AdminUserListItem> {
     return this.adminUsers.getUserById(id);
+  }
+
+  @Patch(":id/role")
+  updateUserRole(
+    @Param("id", new ParseUUIDPipe({ version: "4" })) id: string,
+    @Body() body: UpdateAdminUserRoleDto,
+  ): Promise<AdminUserListItem> {
+    return this.adminUsers.updateUserRole({
+      userId: id,
+      role: body.role,
+    });
   }
 }

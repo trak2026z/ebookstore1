@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   NotFoundException,
   UnauthorizedException,
   ValidationPipe,
@@ -24,6 +25,7 @@ describe("AdminUsersController", () => {
   const adminUsersService = {
     listUsers: vi.fn(),
     getUserById: vi.fn(),
+    updateUserRole: vi.fn(),
   };
 
   const jwtAuthGuard: CanActivate = {
@@ -254,6 +256,124 @@ describe("AdminUsersController", () => {
       isActive: true,
       createdAt: "2026-07-20T10:00:00.000Z",
       updatedAt: "2026-07-21T11:00:00.000Z",
+    });
+    expect(response.body).not.toHaveProperty("passwordHash");
+  });
+
+  it("returns HTTP 401 when changing a role without an access token", async () => {
+    await request(app!.getHttpServer())
+      .patch(`/api/v1/admin/users/${USER_ID}/role`)
+      .send({
+        role: "ADMIN",
+      })
+      .expect(401);
+
+    expect(adminUsersService.updateUserRole).not.toHaveBeenCalled();
+  });
+
+  it("returns HTTP 403 when a non-admin user changes a role", async () => {
+    await request(app!.getHttpServer())
+      .patch(`/api/v1/admin/users/${USER_ID}/role`)
+      .set("Authorization", "Bearer user-token")
+      .send({
+        role: "ADMIN",
+      })
+      .expect(403);
+
+    expect(adminUsersService.updateUserRole).not.toHaveBeenCalled();
+  });
+
+  it("returns HTTP 400 when changing a role for an invalid user ID", async () => {
+    await request(app!.getHttpServer())
+      .patch("/api/v1/admin/users/not-a-uuid/role")
+      .set("Authorization", "Bearer admin-token")
+      .send({
+        role: "ADMIN",
+      })
+      .expect(400);
+
+    expect(adminUsersService.updateUserRole).not.toHaveBeenCalled();
+  });
+
+  it("returns HTTP 400 for an unsupported role", async () => {
+    await request(app!.getHttpServer())
+      .patch(`/api/v1/admin/users/${USER_ID}/role`)
+      .set("Authorization", "Bearer admin-token")
+      .send({
+        role: "SUPER_ADMIN",
+      })
+      .expect(400);
+
+    expect(adminUsersService.updateUserRole).not.toHaveBeenCalled();
+  });
+
+  it("returns HTTP 404 when changing the role of a missing user", async () => {
+    adminUsersService.updateUserRole.mockRejectedValue(new NotFoundException("User not found"));
+
+    await request(app!.getHttpServer())
+      .patch(`/api/v1/admin/users/${USER_ID}/role`)
+      .set("Authorization", "Bearer admin-token")
+      .send({
+        role: "ADMIN",
+      })
+      .expect(404);
+
+    expect(adminUsersService.updateUserRole).toHaveBeenCalledWith({
+      userId: USER_ID,
+      role: "ADMIN",
+    });
+  });
+
+  it("returns HTTP 409 when demoting the last active administrator", async () => {
+    adminUsersService.updateUserRole.mockRejectedValue(
+      new ConflictException("Cannot remove the role of the last active administrator"),
+    );
+
+    await request(app!.getHttpServer())
+      .patch(`/api/v1/admin/users/${USER_ID}/role`)
+      .set("Authorization", "Bearer admin-token")
+      .send({
+        role: "USER",
+      })
+      .expect(409);
+
+    expect(adminUsersService.updateUserRole).toHaveBeenCalledWith({
+      userId: USER_ID,
+      role: "USER",
+    });
+  });
+
+  it("returns HTTP 200 with the updated safe user representation", async () => {
+    adminUsersService.updateUserRole.mockResolvedValue({
+      id: USER_ID,
+      email: "user@example.com",
+      displayName: "Example User",
+      role: "ADMIN",
+      isActive: true,
+      createdAt: "2026-07-20T10:00:00.000Z",
+      updatedAt: "2026-07-22T12:00:00.000Z",
+    });
+
+    const response = await request(app!.getHttpServer())
+      .patch(`/api/v1/admin/users/${USER_ID}/role`)
+      .set("Authorization", "Bearer admin-token")
+      .send({
+        role: "ADMIN",
+      })
+      .expect(200);
+
+    expect(adminUsersService.updateUserRole).toHaveBeenCalledWith({
+      userId: USER_ID,
+      role: "ADMIN",
+    });
+    expect(response.body).toEqual({
+      id: USER_ID,
+      email: "user@example.com",
+      displayName: "Example User",
+      role: "ADMIN",
+      isActive: true,
+      createdAt: "2026-07-20T10:00:00.000Z",
+      updatedAt: "2026-07-22T12:00:00.000Z",
     });
     expect(response.body).not.toHaveProperty("passwordHash");
   });
