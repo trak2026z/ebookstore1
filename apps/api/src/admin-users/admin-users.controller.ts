@@ -1,6 +1,6 @@
-import { Controller, Get, Inject, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Inject, Param, ParseUUIDPipe, Query, UseGuards } from "@nestjs/common";
 
-import type { AdminUserListResponse } from "@ebookstore/contracts";
+import type { AdminUserListItem, AdminUserListResponse } from "@ebookstore/contracts";
 
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
@@ -25,5 +25,12 @@ export class AdminUsersController {
       page: query.page,
       pageSize: query.pageSize,
     });
+  }
+
+  @Get(":id")
+  getUserById(
+    @Param("id", new ParseUUIDPipe({ version: "4" })) id: string,
+  ): Promise<AdminUserListItem> {
+    return this.adminUsers.getUserById(id);
   }
 }

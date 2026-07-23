@@ -1,4 +1,5 @@
 import {
+  NotFoundException,
   UnauthorizedException,
   ValidationPipe,
   type CanActivate,
@@ -15,11 +16,14 @@ import { RolesGuard } from "../auth/roles.guard";
 import { AdminUsersController } from "./admin-users.controller";
 import { AdminUsersService } from "./admin-users.service";
 
+const USER_ID = "11111111-1111-4111-8111-111111111111";
+
 describe("AdminUsersController", () => {
   let app: INestApplication | undefined;
 
   const adminUsersService = {
     listUsers: vi.fn(),
+    getUserById: vi.fn(),
   };
 
   const jwtAuthGuard: CanActivate = {
@@ -60,6 +64,8 @@ describe("AdminUsersController", () => {
   };
 
   beforeEach(async () => {
+    vi.resetAllMocks();
+
     const testingModule = await Test.createTestingModule({
       controllers: [AdminUsersController],
       providers: [
@@ -87,7 +93,6 @@ describe("AdminUsersController", () => {
   });
 
   afterEach(async () => {
-    vi.clearAllMocks();
     await app?.close();
     app = undefined;
   });
@@ -187,5 +192,69 @@ describe("AdminUsersController", () => {
       .expect(400);
 
     expect(adminUsersService.listUsers).not.toHaveBeenCalled();
+  });
+
+  it("returns HTTP 401 for user details without an access token", async () => {
+    await request(app!.getHttpServer()).get(`/api/v1/admin/users/${USER_ID}`).expect(401);
+
+    expect(adminUsersService.getUserById).not.toHaveBeenCalled();
+  });
+
+  it("returns HTTP 403 for user details requested by a non-admin user", async () => {
+    await request(app!.getHttpServer())
+      .get(`/api/v1/admin/users/${USER_ID}`)
+      .set("Authorization", "Bearer user-token")
+      .expect(403);
+
+    expect(adminUsersService.getUserById).not.toHaveBeenCalled();
+  });
+
+  it("returns HTTP 400 for an invalid user ID", async () => {
+    await request(app!.getHttpServer())
+      .get("/api/v1/admin/users/not-a-uuid")
+      .set("Authorization", "Bearer admin-token")
+      .expect(400);
+
+    expect(adminUsersService.getUserById).not.toHaveBeenCalled();
+  });
+
+  it("returns HTTP 404 when the requested user does not exist", async () => {
+    adminUsersService.getUserById.mockRejectedValue(new NotFoundException("User not found"));
+
+    await request(app!.getHttpServer())
+      .get(`/api/v1/admin/users/${USER_ID}`)
+      .set("Authorization", "Bearer admin-token")
+      .expect(404);
+
+    expect(adminUsersService.getUserById).toHaveBeenCalledWith(USER_ID);
+  });
+
+  it("returns HTTP 200 with user details for an administrator", async () => {
+    adminUsersService.getUserById.mockResolvedValue({
+      id: USER_ID,
+      email: "user@example.com",
+      displayName: "Example User",
+      role: "USER",
+      isActive: true,
+      createdAt: "2026-07-20T10:00:00.000Z",
+      updatedAt: "2026-07-21T11:00:00.000Z",
+    });
+
+    const response = await request(app!.getHttpServer())
+      .get(`/api/v1/admin/users/${USER_ID}`)
+      .set("Authorization", "Bearer admin-token")
+      .expect(200);
+
+    expect(adminUsersService.getUserById).toHaveBeenCalledWith(USER_ID);
+    expect(response.body).toEqual({
+      id: USER_ID,
+      email: "user@example.com",
+      displayName: "Example User",
+      role: "USER",
+      isActive: true,
+      createdAt: "2026-07-20T10:00:00.000Z",
+      updatedAt: "2026-07-21T11:00:00.000Z",
+    });
+    expect(response.body).not.toHaveProperty("passwordHash");
   });
 });
