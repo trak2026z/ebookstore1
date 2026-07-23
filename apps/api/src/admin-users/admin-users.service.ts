@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 
 import type {
   AdminUserListItem,
@@ -11,6 +11,11 @@ import { DatabaseService } from "../database/database.service";
 export interface ListAdminUsersInput {
   readonly page: number;
   readonly pageSize: number;
+}
+
+export interface UpdateAdminUserRoleInput {
+  readonly userId: string;
+  readonly role: AdminUserRole;
 }
 
 const ADMIN_USER_SELECT = {
@@ -87,5 +92,48 @@ export class AdminUsersService {
     }
 
     return toAdminUserListItem(user);
+  }
+
+  async updateUserRole(input: UpdateAdminUserRoleInput): Promise<AdminUserListItem> {
+    return this.database.prisma.$transaction(
+      async (transaction) => {
+        const user = await transaction.user.findUnique({
+          where: { id: input.userId },
+          select: ADMIN_USER_SELECT,
+        });
+
+        if (user === null) {
+          throw new NotFoundException("User not found");
+        }
+
+        if (user.role === input.role) {
+          return toAdminUserListItem(user);
+        }
+
+        if (user.role === "ADMIN" && input.role === "USER" && user.isActive) {
+          const activeAdminCount = await transaction.user.count({
+            where: {
+              role: "ADMIN",
+              isActive: true,
+            },
+          });
+
+          if (activeAdminCount <= 1) {
+            throw new ConflictException("Cannot remove the role of the last active administrator");
+          }
+        }
+
+        const updatedUser = await transaction.user.update({
+          where: { id: input.userId },
+          data: { role: input.role },
+          select: ADMIN_USER_SELECT,
+        });
+
+        return toAdminUserListItem(updatedUser);
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
   }
 }

@@ -78,3 +78,7 @@ export interface AdminUserListResponse {
     readonly totalPages: number;
   };
 }
+
+export interface UpdateAdminUserRoleRequest {
+  readonly role: AdminUserRole;
+}
