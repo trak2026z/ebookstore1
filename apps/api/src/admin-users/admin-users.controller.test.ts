@@ -26,6 +26,7 @@ describe("AdminUsersController", () => {
     listUsers: vi.fn(),
     getUserById: vi.fn(),
     updateUserRole: vi.fn(),
+    updateUserStatus: vi.fn(),
   };
 
   const jwtAuthGuard: CanActivate = {
@@ -374,6 +375,124 @@ describe("AdminUsersController", () => {
       isActive: true,
       createdAt: "2026-07-20T10:00:00.000Z",
       updatedAt: "2026-07-22T12:00:00.000Z",
+    });
+    expect(response.body).not.toHaveProperty("passwordHash");
+  });
+
+  it("returns HTTP 401 when changing a status without an access token", async () => {
+    await request(app!.getHttpServer())
+      .patch(`/api/v1/admin/users/${USER_ID}/status`)
+      .send({
+        isActive: false,
+      })
+      .expect(401);
+
+    expect(adminUsersService.updateUserStatus).not.toHaveBeenCalled();
+  });
+
+  it("returns HTTP 403 when a non-admin user changes a status", async () => {
+    await request(app!.getHttpServer())
+      .patch(`/api/v1/admin/users/${USER_ID}/status`)
+      .set("Authorization", "Bearer user-token")
+      .send({
+        isActive: false,
+      })
+      .expect(403);
+
+    expect(adminUsersService.updateUserStatus).not.toHaveBeenCalled();
+  });
+
+  it("returns HTTP 400 when changing a status for an invalid user ID", async () => {
+    await request(app!.getHttpServer())
+      .patch("/api/v1/admin/users/not-a-uuid/status")
+      .set("Authorization", "Bearer admin-token")
+      .send({
+        isActive: false,
+      })
+      .expect(400);
+
+    expect(adminUsersService.updateUserStatus).not.toHaveBeenCalled();
+  });
+
+  it("returns HTTP 400 for a non-boolean user status", async () => {
+    await request(app!.getHttpServer())
+      .patch(`/api/v1/admin/users/${USER_ID}/status`)
+      .set("Authorization", "Bearer admin-token")
+      .send({
+        isActive: "false",
+      })
+      .expect(400);
+
+    expect(adminUsersService.updateUserStatus).not.toHaveBeenCalled();
+  });
+
+  it("returns HTTP 404 when changing the status of a missing user", async () => {
+    adminUsersService.updateUserStatus.mockRejectedValue(new NotFoundException("User not found"));
+
+    await request(app!.getHttpServer())
+      .patch(`/api/v1/admin/users/${USER_ID}/status`)
+      .set("Authorization", "Bearer admin-token")
+      .send({
+        isActive: false,
+      })
+      .expect(404);
+
+    expect(adminUsersService.updateUserStatus).toHaveBeenCalledWith({
+      userId: USER_ID,
+      isActive: false,
+    });
+  });
+
+  it("returns HTTP 409 when deactivating the last active administrator", async () => {
+    adminUsersService.updateUserStatus.mockRejectedValue(
+      new ConflictException("Cannot deactivate the last active administrator"),
+    );
+
+    await request(app!.getHttpServer())
+      .patch(`/api/v1/admin/users/${USER_ID}/status`)
+      .set("Authorization", "Bearer admin-token")
+      .send({
+        isActive: false,
+      })
+      .expect(409);
+
+    expect(adminUsersService.updateUserStatus).toHaveBeenCalledWith({
+      userId: USER_ID,
+      isActive: false,
+    });
+  });
+
+  it("returns HTTP 200 with the updated safe user status", async () => {
+    adminUsersService.updateUserStatus.mockResolvedValue({
+      id: USER_ID,
+      email: "user@example.com",
+      displayName: "Example User",
+      role: "USER",
+      isActive: false,
+      createdAt: "2026-07-20T10:00:00.000Z",
+      updatedAt: "2026-07-23T12:00:00.000Z",
+    });
+
+    const response = await request(app!.getHttpServer())
+      .patch(`/api/v1/admin/users/${USER_ID}/status`)
+      .set("Authorization", "Bearer admin-token")
+      .send({
+        isActive: false,
+      })
+      .expect(200);
+
+    expect(adminUsersService.updateUserStatus).toHaveBeenCalledWith({
+      userId: USER_ID,
+      isActive: false,
+    });
+    expect(response.body).toEqual({
+      id: USER_ID,
+      email: "user@example.com",
+      displayName: "Example User",
+      role: "USER",
+      isActive: false,
+      createdAt: "2026-07-20T10:00:00.000Z",
+      updatedAt: "2026-07-23T12:00:00.000Z",
     });
     expect(response.body).not.toHaveProperty("passwordHash");
   });

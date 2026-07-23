@@ -22,6 +22,9 @@ import { ListAdminUsersQueryDto } from "./dto/list-admin-users-query.dto";
 // Runtime import is required for Nest validation metadata.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateAdminUserRoleDto } from "./dto/update-admin-user-role.dto";
+// Runtime import is required for Nest validation metadata.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateAdminUserStatusDto } from "./dto/update-admin-user-status.dto";
 
 @Controller("admin/users")
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -55,6 +58,17 @@ export class AdminUsersController {
     return this.adminUsers.updateUserRole({
       userId: id,
       role: body.role,
+    });
+  }
+
+  @Patch(":id/status")
+  updateUserStatus(
+    @Param("id", new ParseUUIDPipe({ version: "4" })) id: string,
+    @Body() body: UpdateAdminUserStatusDto,
+  ): Promise<AdminUserListItem> {
+    return this.adminUsers.updateUserStatus({
+      userId: id,
+      isActive: body.isActive,
     });
   }
 }
