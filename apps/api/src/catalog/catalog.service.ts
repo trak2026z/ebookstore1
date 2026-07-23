@@ -30,7 +30,7 @@ interface BookWithRelations {
   readonly description: string;
   readonly publishedAt: Date | null;
   readonly author: {
-    readonly name: string;
+    readonly displayName: string;
     readonly slug: string;
   };
   readonly category: {
@@ -49,13 +49,18 @@ export class CatalogService {
   async getAuthors(): Promise<AuthorListResponse> {
     const authors = await this.database.prisma.author.findMany({
       select: {
-        name: true,
+        displayName: true,
         slug: true,
       },
-      orderBy: [{ name: "asc" }, { slug: "asc" }],
+      orderBy: [{ displayName: "asc" }, { slug: "asc" }],
     });
 
-    return { items: authors };
+    return {
+      items: authors.map((author) => ({
+        name: author.displayName,
+        slug: author.slug,
+      })),
+    };
   }
 
   async getCategories(): Promise<CategoryListResponse> {
@@ -88,7 +93,7 @@ export class CatalogService {
               {
                 author: {
                   is: {
-                    name: {
+                    displayName: {
                       contains: query.q,
                       mode: "insensitive",
                     },
@@ -102,10 +107,7 @@ export class CatalogService {
     const [books, total] = await this.database.prisma.$transaction([
       this.database.prisma.book.findMany({
         where,
-        include: {
-          author: true,
-          category: true,
-        },
+        include: getPublicBookRelations(),
         orderBy: getBookOrderBy(query.sort),
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
@@ -130,10 +132,7 @@ export class CatalogService {
         slug,
         status: "PUBLISHED",
       },
-      include: {
-        author: true,
-        category: true,
-      },
+      include: getPublicBookRelations(),
     });
 
     if (book === null) {
@@ -146,6 +145,23 @@ export class CatalogService {
       publishedAt: book.publishedAt?.toISOString() ?? null,
     };
   }
+}
+
+function getPublicBookRelations() {
+  return {
+    author: {
+      select: {
+        displayName: true,
+        slug: true,
+      },
+    },
+    category: {
+      select: {
+        name: true,
+        slug: true,
+      },
+    },
+  } as const;
 }
 
 function getBookOrderBy(sort: CatalogSort | undefined): Prisma.BookOrderByWithRelationInput[] {
@@ -174,7 +190,13 @@ function mapBook(book: BookWithRelations): BookListItem {
     // adopts the domain-wide `priceMinor` name.
     priceCents: book.priceMinor,
     coverUrl: book.coverUrl,
-    author: book.author,
-    category: book.category,
+    author: {
+      name: book.author.displayName,
+      slug: book.author.slug,
+    },
+    category: {
+      name: book.category.name,
+      slug: book.category.slug,
+    },
   };
 }

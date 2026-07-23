@@ -92,15 +92,32 @@ async function seedAdministrator(): Promise<void> {
 async function main(): Promise<void> {
   const category = await prisma.category.upsert({
     where: { slug: "programowanie" },
-    update: { name: "Programowanie" },
-    create: { name: "Programowanie", slug: "programowanie" },
+    update: {
+      name: "Programowanie",
+      description: "E-booki o programowaniu, architekturze i narzędziach developerskich.",
+    },
+    create: {
+      name: "Programowanie",
+      slug: "programowanie",
+      description: "E-booki o programowaniu, architekturze i narzędziach developerskich.",
+    },
   });
 
   const author = await prisma.author.upsert({
     where: { slug: "marcin-kowalski" },
-    update: { name: "Marcin Kowalski" },
+    update: {
+      name: "Marcin Kowalski",
+      displayName: "Marcin Kowalski",
+      firstName: "Marcin",
+      lastName: "Kowalski",
+      biography: "Autor materiałów o TypeScript i projektowaniu bezpiecznych aplikacji.",
+    },
     create: {
       name: "Marcin Kowalski",
+      displayName: "Marcin Kowalski",
+      firstName: "Marcin",
+      lastName: "Kowalski",
+      biography: "Autor materiałów o TypeScript i projektowaniu bezpiecznych aplikacji.",
       slug: "marcin-kowalski",
     },
   });
