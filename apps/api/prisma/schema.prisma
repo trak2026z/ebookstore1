@@ -13,6 +13,17 @@ enum UserRole {
   ADMIN
 }
 
+enum BookStatus {
+  DRAFT
+  PUBLISHED
+  WITHDRAWN
+}
+
+enum BookFormat {
+  PDF
+  EPUB
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique @db.VarChar(320)
@@ -35,47 +46,92 @@ model SystemMetadata {
 }
 
 model Author {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String   @db.VarChar(160)
-  slug      String   @unique @db.VarChar(180)
-  books     Book[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Retained temporarily while older write paths are migrated.
+  name        String  @db.VarChar(160)
+  displayName String  @db.VarChar(160)
+  firstName   String? @db.VarChar(80)
+  lastName    String? @db.VarChar(100)
+  biography   String?
+
+  slug      String       @unique @db.VarChar(180)
+  books     BookAuthor[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   @@index([name], map: "authors_name_idx")
+  @@index([displayName], map: "authors_display_name_idx")
   @@map("authors")
 }
 
 model Category {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String   @db.VarChar(120)
-  slug      String   @unique @db.VarChar(140)
-  books     Book[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String         @id @default(uuid()) @db.Uuid
+  name        String         @db.VarChar(120)
+  slug        String         @unique @db.VarChar(140)
+  description String?
+  books       BookCategory[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   @@map("categories")
 }
 
 model Book {
-  id          String    @id @default(uuid()) @db.Uuid
-  title       String    @db.VarChar(240)
-  slug        String    @unique @db.VarChar(260)
+  id          String @id @default(uuid()) @db.Uuid
+  title       String @db.VarChar(240)
+  slug        String @unique @db.VarChar(260)
+  isbn        String @unique @db.VarChar(40)
   description String
-  priceCents  Int
+
+  /// PostgreSQL enforces `priceMinor >= 0`.
+  priceMinor Int
+
+  /// PostgreSQL enforces exactly three uppercase ASCII letters.
+  currency String     @default("PLN") @db.Char(3)
+  status   BookStatus @default(DRAFT)
+  format   BookFormat @default(PDF)
+  coverKey String?    @db.VarChar(512)
+
+  /// Retained temporarily for backward compatibility with the public catalog API.
   coverUrl    String?
   publishedAt DateTime?
-  isActive    Boolean   @default(true)
-  authorId    String    @db.Uuid
-  categoryId  String    @db.Uuid
-  author      Author    @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  authors     BookAuthor[]
+  categories  BookCategory[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
-  @@index([authorId])
-  @@index([categoryId, isActive])
-  @@index([isActive, createdAt(sort: Desc), id], map: "books_active_created_at_id_idx")
-  @@index([authorId, isActive, createdAt(sort: Desc), id], map: "books_author_active_created_at_id_idx")
+  @@index([title], map: "books_title_idx")
+  @@index([status, createdAt(sort: Desc), id], map: "books_status_created_at_id_idx")
   @@map("books")
+}
+
+model BookAuthor {
+  bookId   String @db.Uuid
+  authorId String @db.Uuid
+  /// PostgreSQL enforces `position >= 0`.
+  position Int    @default(0)
+
+  book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  author Author @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@id([bookId, authorId])
+  @@index([authorId, bookId], map: "book_authors_author_id_book_id_idx")
+  @@index([bookId, position, authorId], map: "book_authors_book_id_position_author_id_idx")
+  @@map("book_authors")
+}
+
+model BookCategory {
+  bookId     String @db.Uuid
+  categoryId String @db.Uuid
+  /// PostgreSQL enforces `position >= 0`.
+  position   Int    @default(0)
+
+  book     Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([bookId, categoryId])
+  @@index([categoryId, bookId], map: "book_categories_category_id_book_id_idx")
+  @@index([bookId, position, categoryId], map: "book_categories_book_id_position_category_id_idx")
+  @@map("book_categories")
 }

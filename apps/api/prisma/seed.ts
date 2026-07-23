@@ -1,6 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import * as argon2 from "argon2";
 
+import { seedCatalog } from "../src/catalog/catalog-seed.js";
 import { PrismaClient } from "../src/generated/prisma/client.js";
 import { UserRole } from "../src/generated/prisma/enums.js";
 import { normalizeEmail } from "../src/users/normalize-email.js";
@@ -90,38 +91,7 @@ async function seedAdministrator(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const category = await prisma.category.upsert({
-    where: { slug: "programowanie" },
-    update: { name: "Programowanie" },
-    create: { name: "Programowanie", slug: "programowanie" },
-  });
-
-  const author = await prisma.author.upsert({
-    where: { slug: "marcin-kowalski" },
-    update: { name: "Marcin Kowalski" },
-    create: { name: "Marcin Kowalski", slug: "marcin-kowalski" },
-  });
-
-  await prisma.book.upsert({
-    where: { slug: "typescript-w-praktyce" },
-    update: {
-      title: "TypeScript w praktyce",
-      description: "Praktyczne wzorce tworzenia bezpiecznych aplikacji TypeScript.",
-      priceCents: 7990,
-      authorId: author.id,
-      categoryId: category.id,
-      isActive: true,
-    },
-    create: {
-      title: "TypeScript w praktyce",
-      slug: "typescript-w-praktyce",
-      description: "Praktyczne wzorce tworzenia bezpiecznych aplikacji TypeScript.",
-      priceCents: 7990,
-      authorId: author.id,
-      categoryId: category.id,
-    },
-  });
-
+  await seedCatalog(prisma);
   await seedAdministrator();
 }
 

@@ -19,7 +19,9 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:smoke:admin-users": "npm run db:migrate:deploy --workspace @ebookstore/api && RUN_DATABASE_SMOKE_TESTS=1 vitest run apps/api/src/admin-users/admin-users.smoke.test.ts",
-    "build": "npm run build --workspace @ebookstore/contracts && npm run build --workspace @ebookstore/api"
+    "build": "npm run build --workspace @ebookstore/contracts && npm run build --workspace @ebookstore/api",
+    "test:smoke:catalog-integrity": "npm run db:migrate:deploy --workspace @ebookstore/api && RUN_DATABASE_SMOKE_TESTS=1 vitest run apps/api/src/catalog/catalog-integrity.smoke.test.ts",
+    "test:smoke:catalog-seed": "npm run db:migrate:deploy --workspace @ebookstore/api && RUN_DATABASE_SMOKE_TESTS=1 vitest run apps/api/src/catalog/catalog-seed.smoke.test.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

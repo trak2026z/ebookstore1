@@ -1,152 +1,231 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { DatabaseService } from "../database/database.service";
-import type { CatalogSort } from "./catalog-query";
 import { CatalogService } from "./catalog.service";
+import type { AuthorsRepository } from "./repositories/authors.repository";
+import type { BooksRepository, PublicBookRecord } from "./repositories/books.repository";
+import type { CategoriesRepository } from "./repositories/categories.repository";
 
 describe("CatalogService", () => {
-  it("returns the public author dictionary in a stable order", async () => {
-    const { database, findAuthors } = createDatabaseMock();
-    const authors = [
-      { name: "Octavia E. Butler", slug: "octavia-e-butler" },
-      { name: "Ursula K. Le Guin", slug: "ursula-k-le-guin" },
-    ];
-    findAuthors.mockResolvedValue(authors);
-    const service = new CatalogService(database);
-
-    await expect(service.getAuthors()).resolves.toEqual({ items: authors });
-    expect(findAuthors).toHaveBeenCalledWith({
-      select: {
-        name: true,
-        slug: true,
+  it("maps authors to the public contract", async () => {
+    const { service, findAuthors } = createService();
+    findAuthors.mockResolvedValue([
+      {
+        displayName: "Anna Nowak",
+        slug: "anna-nowak",
       },
-      orderBy: [{ name: "asc" }, { slug: "asc" }],
-    });
-  });
+    ]);
 
-  it("returns the public category dictionary in a stable order", async () => {
-    const { database, findCategories } = createDatabaseMock();
-    const categories = [
-      { name: "Fantasy", slug: "fantasy" },
-      { name: "Science Fiction", slug: "science-fiction" },
-    ];
-    findCategories.mockResolvedValue(categories);
-    const service = new CatalogService(database);
-
-    await expect(service.getCategories()).resolves.toEqual({ items: categories });
-    expect(findCategories).toHaveBeenCalledWith({
-      select: {
-        name: true,
-        slug: true,
-      },
-      orderBy: [{ name: "asc" }, { slug: "asc" }],
-    });
-  });
-
-  it("filters books by author slug", async () => {
-    const { database, findMany, count } = createDatabaseMock();
-    const service = new CatalogService(database);
-
-    await service.getBooks({
-      page: 1,
-      pageSize: 20,
-      author: "ursula-le-guin",
-    });
-
-    const expectedWhere = {
-      isActive: true,
-      author: { is: { slug: "ursula-le-guin" } },
-    };
-
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expectedWhere, skip: 0, take: 20 }),
-    );
-    expect(count).toHaveBeenCalledWith({ where: expectedWhere });
-  });
-
-  it("combines author, category and text filters", async () => {
-    const { database, findMany, count } = createDatabaseMock();
-    const service = new CatalogService(database);
-
-    await service.getBooks({
-      page: 2,
-      pageSize: 10,
-      category: "science-fiction",
-      author: "ursula-le-guin",
-      q: "earthsea",
-    });
-
-    const expectedWhere = {
-      isActive: true,
-      category: { slug: "science-fiction" },
-      author: { is: { slug: "ursula-le-guin" } },
-      OR: [
-        { title: { contains: "earthsea", mode: "insensitive" } },
+    await expect(service.getAuthors()).resolves.toEqual({
+      items: [
         {
+          name: "Anna Nowak",
+          slug: "anna-nowak",
+        },
+      ],
+    });
+  });
+
+  it("returns public categories", async () => {
+    const { service, findCategories } = createService();
+    findCategories.mockResolvedValue([
+      {
+        name: "Programowanie",
+        slug: "programowanie",
+      },
+    ]);
+
+    await expect(service.getCategories()).resolves.toEqual({
+      items: [
+        {
+          name: "Programowanie",
+          slug: "programowanie",
+        },
+      ],
+    });
+  });
+
+  it("maps a repository page and calculates pagination", async () => {
+    const { service, findPublishedPage } = createService();
+    findPublishedPage.mockResolvedValue({
+      items: [createBook()],
+      total: 21,
+    });
+
+    await expect(
+      service.getBooks({
+        page: 2,
+        pageSize: 10,
+        author: "marcin-kowalski",
+      }),
+    ).resolves.toEqual({
+      items: [
+        {
+          id: "book-id",
+          title: "TypeScript w praktyce",
+          slug: "typescript-w-praktyce",
+          priceCents: 7990,
+          coverUrl: null,
           author: {
-            is: {
-              name: { contains: "earthsea", mode: "insensitive" },
-            },
+            name: "Marcin Kowalski",
+            slug: "marcin-kowalski",
+          },
+          category: {
+            name: "Programowanie",
+            slug: "programowanie",
           },
         },
       ],
-    };
+      pagination: {
+        page: 2,
+        pageSize: 10,
+        total: 21,
+        totalPages: 3,
+      },
+    });
 
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expectedWhere, skip: 10, take: 10 }),
-    );
-    expect(count).toHaveBeenCalledWith({ where: expectedWhere });
+    expect(findPublishedPage).toHaveBeenCalledWith({
+      page: 2,
+      pageSize: 10,
+      author: "marcin-kowalski",
+    });
   });
 
-  it.each([
-    [undefined, [{ createdAt: "desc" }, { id: "asc" }]],
-    ["newest", [{ createdAt: "desc" }, { id: "asc" }]],
-    ["price-asc", [{ priceCents: "asc" }, { id: "asc" }]],
-    ["price-desc", [{ priceCents: "desc" }, { id: "asc" }]],
-    ["title-asc", [{ title: "asc" }, { id: "asc" }]],
-    ["title-desc", [{ title: "desc" }, { id: "asc" }]],
-  ] satisfies readonly [CatalogSort | undefined, readonly Record<string, "asc" | "desc">[]][])(
-    "maps sort %s to a stable Prisma order",
-    async (sort, expectedOrderBy) => {
-      const { database, findMany } = createDatabaseMock();
-      const service = new CatalogService(database);
+  it("returns published book details", async () => {
+    const { service, findPublishedBySlug } = createService();
+    findPublishedBySlug.mockResolvedValue(createBook());
 
-      await service.getBooks({
+    await expect(service.getBookBySlug("typescript-w-praktyce")).resolves.toEqual({
+      id: "book-id",
+      title: "TypeScript w praktyce",
+      slug: "typescript-w-praktyce",
+      priceCents: 7990,
+      coverUrl: null,
+      author: {
+        name: "Marcin Kowalski",
+        slug: "marcin-kowalski",
+      },
+      category: {
+        name: "Programowanie",
+        slug: "programowanie",
+      },
+      description: "Opis książki.",
+      publishedAt: "2026-07-17T00:00:00.000Z",
+    });
+  });
+
+  it("throws when a published book does not exist", async () => {
+    const { service } = createService();
+
+    await expect(service.getBookBySlug("missing-book")).rejects.toThrow("Book not found.");
+  });
+
+  it("fails closed when a published book has no author", async () => {
+    const { service, findPublishedPage } = createService();
+    findPublishedPage.mockResolvedValue({
+      items: [
+        {
+          ...createBook(),
+          authors: [],
+        },
+      ],
+      total: 1,
+    });
+
+    await expect(
+      service.getBooks({
         page: 1,
         pageSize: 20,
-        ...(sort === undefined ? {} : { sort }),
-      });
+      }),
+    ).rejects.toThrow("Published book has no author relation.");
+  });
 
-      expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ orderBy: expectedOrderBy }));
-    },
-  );
+  it("fails closed when a published book has no category", async () => {
+    const { service, findPublishedPage } = createService();
+    findPublishedPage.mockResolvedValue({
+      items: [
+        {
+          ...createBook(),
+          categories: [],
+        },
+      ],
+      total: 1,
+    });
+
+    await expect(
+      service.getBooks({
+        page: 1,
+        pageSize: 20,
+      }),
+    ).rejects.toThrow("Published book has no category relation.");
+  });
 });
 
-function createDatabaseMock(): {
-  readonly database: DatabaseService;
+function createService(): {
+  readonly service: CatalogService;
   readonly findAuthors: ReturnType<typeof vi.fn>;
   readonly findCategories: ReturnType<typeof vi.fn>;
-  readonly findMany: ReturnType<typeof vi.fn>;
-  readonly count: ReturnType<typeof vi.fn>;
+  readonly findPublishedPage: ReturnType<typeof vi.fn>;
+  readonly findPublishedBySlug: ReturnType<typeof vi.fn>;
 } {
   const findAuthors = vi.fn().mockResolvedValue([]);
   const findCategories = vi.fn().mockResolvedValue([]);
-  const findMany = vi.fn().mockResolvedValue([]);
-  const count = vi.fn().mockResolvedValue(0);
-  const transaction = vi.fn().mockResolvedValue([[], 0]);
+  const findPublishedPage = vi.fn().mockResolvedValue({
+    items: [],
+    total: 0,
+  });
+  const findPublishedBySlug = vi.fn().mockResolvedValue(null);
+
+  const booksRepository = {
+    findPublishedPage,
+    findPublishedBySlug,
+  } as unknown as BooksRepository;
+  const authorsRepository = {
+    findPublicList: findAuthors,
+  } as unknown as AuthorsRepository;
+  const categoriesRepository = {
+    findPublicList: findCategories,
+  } as unknown as CategoriesRepository;
 
   return {
-    database: {
-      prisma: {
-        author: { findMany: findAuthors },
-        category: { findMany: findCategories },
-        book: { findMany, count },
-        $transaction: transaction,
-      },
-    } as unknown as DatabaseService,
+    service: new CatalogService(booksRepository, authorsRepository, categoriesRepository),
     findAuthors,
     findCategories,
-    findMany,
-    count,
+    findPublishedPage,
+    findPublishedBySlug,
+  };
+}
+
+function createBook(): PublicBookRecord {
+  return {
+    id: "book-id",
+    title: "TypeScript w praktyce",
+    slug: "typescript-w-praktyce",
+    isbn: "9780000000002",
+    description: "Opis książki.",
+    priceMinor: 7990,
+    currency: "PLN",
+    status: "PUBLISHED",
+    format: "EPUB",
+    coverKey: null,
+    coverUrl: null,
+    publishedAt: new Date("2026-07-17T00:00:00.000Z"),
+    createdAt: new Date("2026-07-17T00:00:00.000Z"),
+    updatedAt: new Date("2026-07-17T00:00:00.000Z"),
+    authors: [
+      {
+        author: {
+          displayName: "Marcin Kowalski",
+          slug: "marcin-kowalski",
+        },
+      },
+    ],
+    categories: [
+      {
+        category: {
+          name: "Programowanie",
+          slug: "programowanie",
+        },
+      },
+    ],
   };
 }

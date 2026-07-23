@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from "@nestjs/common";
 
 import type {
   AuthorListResponse,
@@ -8,9 +13,10 @@ import type {
   CategoryListResponse,
 } from "@ebookstore/contracts";
 
-import { DatabaseService } from "../database/database.service";
-import type { Prisma } from "../generated/prisma/client.js";
 import type { CatalogSort } from "./catalog-query";
+import { AuthorsRepository } from "./repositories/authors.repository";
+import { BooksRepository, type PublicBookRecord } from "./repositories/books.repository";
+import { CategoriesRepository } from "./repositories/categories.repository";
 
 interface GetBooksQuery {
   readonly page: number;
@@ -21,120 +27,52 @@ interface GetBooksQuery {
   readonly sort?: CatalogSort;
 }
 
-interface BookWithRelations {
-  readonly id: string;
-  readonly title: string;
-  readonly slug: string;
-  readonly priceCents: number;
-  readonly coverUrl: string | null;
-  readonly description: string;
-  readonly publishedAt: Date | null;
-  readonly author: {
-    readonly name: string;
-    readonly slug: string;
-  };
-  readonly category: {
-    readonly name: string;
-    readonly slug: string;
-  };
-}
-
 @Injectable()
 export class CatalogService {
   constructor(
-    @Inject(DatabaseService)
-    private readonly database: DatabaseService,
+    @Inject(BooksRepository)
+    private readonly booksRepository: BooksRepository,
+    @Inject(AuthorsRepository)
+    private readonly authorsRepository: AuthorsRepository,
+    @Inject(CategoriesRepository)
+    private readonly categoriesRepository: CategoriesRepository,
   ) {}
 
   async getAuthors(): Promise<AuthorListResponse> {
-    const authors = await this.database.prisma.author.findMany({
-      select: {
-        name: true,
-        slug: true,
-      },
-      orderBy: [{ name: "asc" }, { slug: "asc" }],
-    });
+    const authors = await this.authorsRepository.findPublicList();
 
-    return { items: authors };
+    return {
+      items: authors.map((author) => ({
+        name: author.displayName,
+        slug: author.slug,
+      })),
+    };
   }
 
   async getCategories(): Promise<CategoryListResponse> {
-    const categories = await this.database.prisma.category.findMany({
-      select: {
-        name: true,
-        slug: true,
-      },
-      orderBy: [{ name: "asc" }, { slug: "asc" }],
-    });
+    const categories = await this.categoriesRepository.findPublicList();
 
-    return { items: categories };
+    return {
+      items: categories,
+    };
   }
 
   async getBooks(query: GetBooksQuery): Promise<BookListResponse> {
-    const where = {
-      isActive: true,
-      ...(query.category === undefined ? {} : { category: { slug: query.category } }),
-      ...(query.author === undefined ? {} : { author: { is: { slug: query.author } } }),
-      ...(query.q === undefined
-        ? {}
-        : {
-            OR: [
-              {
-                title: {
-                  contains: query.q,
-                  mode: "insensitive",
-                },
-              },
-              {
-                author: {
-                  is: {
-                    name: {
-                      contains: query.q,
-                      mode: "insensitive",
-                    },
-                  },
-                },
-              },
-            ],
-          }),
-    } satisfies Prisma.BookWhereInput;
-
-    const [books, total] = await this.database.prisma.$transaction([
-      this.database.prisma.book.findMany({
-        where,
-        include: {
-          author: true,
-          category: true,
-        },
-        orderBy: getBookOrderBy(query.sort),
-        skip: (query.page - 1) * query.pageSize,
-        take: query.pageSize,
-      }),
-      this.database.prisma.book.count({ where }),
-    ]);
+    const page = await this.booksRepository.findPublishedPage(query);
 
     return {
-      items: books.map(mapBook),
+      items: page.items.map(mapBook),
       pagination: {
         page: query.page,
         pageSize: query.pageSize,
-        total,
-        totalPages: Math.ceil(total / query.pageSize),
+        total: page.total,
+        totalPages: Math.ceil(page.total / query.pageSize),
       },
     };
   }
 
   async getBookBySlug(slug: string): Promise<BookDetailsResponse> {
-    const book = await this.database.prisma.book.findFirst({
-      where: {
-        slug,
-        isActive: true,
-      },
-      include: {
-        author: true,
-        category: true,
-      },
-    });
+    const book = await this.booksRepository.findPublishedBySlug(slug);
 
     if (book === null) {
       throw new NotFoundException("Book not found.");
@@ -148,30 +86,31 @@ export class CatalogService {
   }
 }
 
-function getBookOrderBy(sort: CatalogSort | undefined): Prisma.BookOrderByWithRelationInput[] {
-  switch (sort) {
-    case "price-asc":
-      return [{ priceCents: "asc" }, { id: "asc" }];
-    case "price-desc":
-      return [{ priceCents: "desc" }, { id: "asc" }];
-    case "title-asc":
-      return [{ title: "asc" }, { id: "asc" }];
-    case "title-desc":
-      return [{ title: "desc" }, { id: "asc" }];
-    case "newest":
-    case undefined:
-      return [{ createdAt: "desc" }, { id: "asc" }];
-  }
-}
+function mapBook(book: PublicBookRecord): BookListItem {
+  const primaryAuthor = book.authors[0]?.author;
+  const primaryCategory = book.categories[0]?.category;
 
-function mapBook(book: BookWithRelations): BookListItem {
+  if (primaryAuthor === undefined) {
+    throw new InternalServerErrorException("Published book has no author relation.");
+  }
+
+  if (primaryCategory === undefined) {
+    throw new InternalServerErrorException("Published book has no category relation.");
+  }
+
   return {
     id: book.id,
     title: book.title,
     slug: book.slug,
-    priceCents: book.priceCents,
+    priceCents: book.priceMinor,
     coverUrl: book.coverUrl,
-    author: book.author,
-    category: book.category,
+    author: {
+      name: primaryAuthor.displayName,
+      slug: primaryAuthor.slug,
+    },
+    category: {
+      name: primaryCategory.name,
+      slug: primaryCategory.slug,
+    },
   };
 }
