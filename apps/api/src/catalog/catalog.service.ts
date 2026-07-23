@@ -25,7 +25,7 @@ interface BookWithRelations {
   readonly id: string;
   readonly title: string;
   readonly slug: string;
-  readonly priceCents: number;
+  readonly priceMinor: number;
   readonly coverUrl: string | null;
   readonly description: string;
   readonly publishedAt: Date | null;
@@ -72,7 +72,7 @@ export class CatalogService {
 
   async getBooks(query: GetBooksQuery): Promise<BookListResponse> {
     const where = {
-      isActive: true,
+      status: "PUBLISHED",
       ...(query.category === undefined ? {} : { category: { slug: query.category } }),
       ...(query.author === undefined ? {} : { author: { is: { slug: query.author } } }),
       ...(query.q === undefined
@@ -128,7 +128,7 @@ export class CatalogService {
     const book = await this.database.prisma.book.findFirst({
       where: {
         slug,
-        isActive: true,
+        status: "PUBLISHED",
       },
       include: {
         author: true,
@@ -151,9 +151,9 @@ export class CatalogService {
 function getBookOrderBy(sort: CatalogSort | undefined): Prisma.BookOrderByWithRelationInput[] {
   switch (sort) {
     case "price-asc":
-      return [{ priceCents: "asc" }, { id: "asc" }];
+      return [{ priceMinor: "asc" }, { id: "asc" }];
     case "price-desc":
-      return [{ priceCents: "desc" }, { id: "asc" }];
+      return [{ priceMinor: "desc" }, { id: "asc" }];
     case "title-asc":
       return [{ title: "asc" }, { id: "asc" }];
     case "title-desc":
@@ -169,7 +169,10 @@ function mapBook(book: BookWithRelations): BookListItem {
     id: book.id,
     title: book.title,
     slug: book.slug,
-    priceCents: book.priceCents,
+
+    // Keep the public v1 response backward compatible while the database
+    // adopts the domain-wide `priceMinor` name.
+    priceCents: book.priceMinor,
     coverUrl: book.coverUrl,
     author: book.author,
     category: book.category,

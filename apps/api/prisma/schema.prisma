@@ -13,6 +13,17 @@ enum UserRole {
   ADMIN
 }
 
+enum BookStatus {
+  DRAFT
+  PUBLISHED
+  WITHDRAWN
+}
+
+enum BookFormat {
+  PDF
+  EPUB
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique @db.VarChar(320)
@@ -58,14 +69,20 @@ model Category {
 }
 
 model Book {
-  id          String    @id @default(uuid()) @db.Uuid
-  title       String    @db.VarChar(240)
-  slug        String    @unique @db.VarChar(260)
+  id          String     @id @default(uuid()) @db.Uuid
+  title       String     @db.VarChar(240)
+  slug        String     @unique @db.VarChar(260)
+  isbn        String     @unique @db.VarChar(40)
   description String
-  priceCents  Int
+  priceMinor  Int
+  currency    String     @default("PLN") @db.Char(3)
+  status      BookStatus @default(DRAFT)
+  format      BookFormat @default(PDF)
+  coverKey    String?    @db.VarChar(512)
+
+  /// Retained temporarily for backward compatibility with the public catalog API.
   coverUrl    String?
   publishedAt DateTime?
-  isActive    Boolean   @default(true)
   authorId    String    @db.Uuid
   categoryId  String    @db.Uuid
   author      Author    @relation(fields: [authorId], references: [id], onDelete: Restrict)
@@ -74,8 +91,8 @@ model Book {
   updatedAt   DateTime  @updatedAt
 
   @@index([authorId])
-  @@index([categoryId, isActive])
-  @@index([isActive, createdAt(sort: Desc), id], map: "books_active_created_at_id_idx")
-  @@index([authorId, isActive, createdAt(sort: Desc), id], map: "books_author_active_created_at_id_idx")
+  @@index([categoryId, status], map: "books_category_status_idx")
+  @@index([status, createdAt(sort: Desc), id], map: "books_status_created_at_id_idx")
+  @@index([authorId, status, createdAt(sort: Desc), id], map: "books_author_status_created_at_id_idx")
   @@map("books")
 }

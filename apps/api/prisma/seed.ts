@@ -2,7 +2,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import * as argon2 from "argon2";
 
 import { PrismaClient } from "../src/generated/prisma/client.js";
-import { UserRole } from "../src/generated/prisma/enums.js";
+import { BookFormat, BookStatus, UserRole } from "../src/generated/prisma/enums.js";
 import { normalizeEmail } from "../src/users/normalize-email.js";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -99,24 +99,36 @@ async function main(): Promise<void> {
   const author = await prisma.author.upsert({
     where: { slug: "marcin-kowalski" },
     update: { name: "Marcin Kowalski" },
-    create: { name: "Marcin Kowalski", slug: "marcin-kowalski" },
+    create: {
+      name: "Marcin Kowalski",
+      slug: "marcin-kowalski",
+    },
   });
 
   await prisma.book.upsert({
     where: { slug: "typescript-w-praktyce" },
     update: {
       title: "TypeScript w praktyce",
+      isbn: "9780000000002",
       description: "Praktyczne wzorce tworzenia bezpiecznych aplikacji TypeScript.",
-      priceCents: 7990,
+      priceMinor: 7990,
+      currency: "PLN",
+      status: BookStatus.PUBLISHED,
+      format: BookFormat.EPUB,
+      publishedAt: new Date("2026-07-17T00:00:00.000Z"),
       authorId: author.id,
       categoryId: category.id,
-      isActive: true,
     },
     create: {
       title: "TypeScript w praktyce",
       slug: "typescript-w-praktyce",
+      isbn: "9780000000002",
       description: "Praktyczne wzorce tworzenia bezpiecznych aplikacji TypeScript.",
-      priceCents: 7990,
+      priceMinor: 7990,
+      currency: "PLN",
+      status: BookStatus.PUBLISHED,
+      format: BookFormat.EPUB,
+      publishedAt: new Date("2026-07-17T00:00:00.000Z"),
       authorId: author.id,
       categoryId: category.id,
     },
