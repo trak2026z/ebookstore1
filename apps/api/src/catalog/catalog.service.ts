@@ -9,8 +9,9 @@ import type {
   AuthorListResponse,
   BookDetailsResponse,
   BookListItem,
-  BookListResponse,
   CategoryListResponse,
+  PublicBookListItem,
+  PublicBookListResponse,
 } from "@ebookstore/contracts";
 
 import type { CatalogSort } from "./catalog-query";
@@ -57,15 +58,15 @@ export class CatalogService {
     };
   }
 
-  async getBooks(query: GetBooksQuery): Promise<BookListResponse> {
+  async getBooks(query: GetBooksQuery): Promise<PublicBookListResponse> {
     const page = await this.booksRepository.findPublishedPage(query);
 
     return {
-      items: page.items.map(mapBook),
+      items: page.items.map(mapPublicBookListItem),
       pagination: {
         page: query.page,
         pageSize: query.pageSize,
-        total: page.total,
+        totalItems: page.total,
         totalPages: Math.ceil(page.total / query.pageSize),
       },
     };
@@ -79,14 +80,38 @@ export class CatalogService {
     }
 
     return {
-      ...mapBook(book),
+      ...mapLegacyBook(book),
       description: book.description,
       publishedAt: book.publishedAt?.toISOString() ?? null,
     };
   }
 }
 
-function mapBook(book: PublicBookRecord): BookListItem {
+function mapPublicBookListItem(book: PublicBookRecord): PublicBookListItem {
+  return {
+    id: book.id,
+    slug: book.slug,
+    title: book.title,
+    authors: book.authors.map(({ author }) => ({
+      id: author.id,
+      displayName: author.displayName,
+      slug: author.slug,
+    })),
+    categories: book.categories.map(({ category }) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+    })),
+    price: {
+      amountMinor: book.priceMinor,
+      currency: book.currency,
+    },
+    format: book.format,
+    coverUrl: null,
+  };
+}
+
+function mapLegacyBook(book: PublicBookRecord): BookListItem {
   const primaryAuthor = book.authors[0]?.author;
   const primaryCategory = book.categories[0]?.category;
 

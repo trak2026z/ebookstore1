@@ -10,30 +10,30 @@ const PUBLIC_BOOK_RELATIONS = {
     select: {
       author: {
         select: {
+          id: true,
           displayName: true,
           slug: true,
         },
       },
     },
     orderBy: [{ position: "asc" }, { authorId: "asc" }],
-    take: 1,
   },
   categories: {
     select: {
       category: {
         select: {
+          id: true,
           name: true,
           slug: true,
         },
       },
     },
     orderBy: [{ position: "asc" }, { categoryId: "asc" }],
-    take: 1,
   },
 } as const;
 
 describe("BooksRepository", () => {
-  it("loads a published page with stable defaults", async () => {
+  it("loads a published page with all public relations and stable defaults", async () => {
     const { database, findMany, count } = createDatabaseMock();
     const repository = new BooksRepository(database);
 

@@ -19,25 +19,25 @@ const PUBLIC_BOOK_RELATIONS = {
     select: {
       author: {
         select: {
+          id: true,
           displayName: true,
           slug: true,
         },
       },
     },
     orderBy: [{ position: "asc" }, { authorId: "asc" }],
-    take: 1,
   },
   categories: {
     select: {
       category: {
         select: {
+          id: true,
           name: true,
           slug: true,
         },
       },
     },
     orderBy: [{ position: "asc" }, { categoryId: "asc" }],
-    take: 1,
   },
 } satisfies Prisma.BookInclude;
 

@@ -44,45 +44,66 @@ describe("CatalogService", () => {
     });
   });
 
-  it("maps a repository page and calculates pagination", async () => {
+  it("maps all public book relations and calculates pagination", async () => {
     const { service, findPublishedPage } = createService();
     findPublishedPage.mockResolvedValue({
-      items: [createBook()],
+      items: [
+        {
+          ...createBook(),
+          coverKey: "private/covers/typescript.epub",
+          coverUrl: "https://storage.example/private-cover",
+        },
+      ],
       total: 21,
     });
 
-    await expect(
-      service.getBooks({
-        page: 2,
-        pageSize: 10,
-        author: "marcin-kowalski",
-      }),
-    ).resolves.toEqual({
-      items: [
-        {
-          id: "book-id",
-          title: "TypeScript w praktyce",
-          slug: "typescript-w-praktyce",
-          priceCents: 7990,
-          coverUrl: null,
-          author: {
-            name: "Marcin Kowalski",
-            slug: "marcin-kowalski",
-          },
-          category: {
-            name: "Programowanie",
-            slug: "programowanie",
-          },
-        },
-      ],
-      pagination: {
-        page: 2,
-        pageSize: 10,
-        total: 21,
-        totalPages: 3,
-      },
+    const response = await service.getBooks({
+      page: 2,
+      pageSize: 10,
+      author: "marcin-kowalski",
     });
 
+    expect(response.items[0]).toEqual({
+      id: "book-id",
+      slug: "typescript-w-praktyce",
+      title: "TypeScript w praktyce",
+      authors: [
+        {
+          id: "author-1",
+          displayName: "Marcin Kowalski",
+          slug: "marcin-kowalski",
+        },
+        {
+          id: "author-2",
+          displayName: "Anna Nowak",
+          slug: "anna-nowak",
+        },
+      ],
+      categories: [
+        {
+          id: "category-1",
+          name: "Programowanie",
+          slug: "programowanie",
+        },
+        {
+          id: "category-2",
+          name: "Backend",
+          slug: "backend",
+        },
+      ],
+      price: {
+        amountMinor: 7990,
+        currency: "PLN",
+      },
+      format: "EPUB",
+      coverUrl: null,
+    });
+    expect(response.pagination).toEqual({
+      page: 2,
+      pageSize: 10,
+      totalItems: 21,
+      totalPages: 3,
+    });
     expect(findPublishedPage).toHaveBeenCalledWith({
       page: 2,
       pageSize: 10,
@@ -90,7 +111,31 @@ describe("CatalogService", () => {
     });
   });
 
-  it("returns published book details", async () => {
+  it("returns empty public relation arrays without failing the list", async () => {
+    const { service, findPublishedPage } = createService();
+    findPublishedPage.mockResolvedValue({
+      items: [
+        {
+          ...createBook(),
+          authors: [],
+          categories: [],
+        },
+      ],
+      total: 1,
+    });
+
+    const response = await service.getBooks({
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(response.items[0]).toMatchObject({
+      authors: [],
+      categories: [],
+    });
+  });
+
+  it("returns published book details through the legacy contract", async () => {
     const { service, findPublishedBySlug } = createService();
     findPublishedBySlug.mockResolvedValue(createBook());
 
@@ -119,44 +164,17 @@ describe("CatalogService", () => {
     await expect(service.getBookBySlug("missing-book")).rejects.toThrow("Book not found.");
   });
 
-  it("fails closed when a published book has no author", async () => {
-    const { service, findPublishedPage } = createService();
-    findPublishedPage.mockResolvedValue({
-      items: [
-        {
-          ...createBook(),
-          authors: [],
-        },
-      ],
-      total: 1,
+  it.each([
+    ["authors", "Published book has no author relation."],
+    ["categories", "Published book has no category relation."],
+  ] as const)("keeps legacy details closed without %s", async (relation, message) => {
+    const { service, findPublishedBySlug } = createService();
+    findPublishedBySlug.mockResolvedValue({
+      ...createBook(),
+      [relation]: [],
     });
 
-    await expect(
-      service.getBooks({
-        page: 1,
-        pageSize: 20,
-      }),
-    ).rejects.toThrow("Published book has no author relation.");
-  });
-
-  it("fails closed when a published book has no category", async () => {
-    const { service, findPublishedPage } = createService();
-    findPublishedPage.mockResolvedValue({
-      items: [
-        {
-          ...createBook(),
-          categories: [],
-        },
-      ],
-      total: 1,
-    });
-
-    await expect(
-      service.getBooks({
-        page: 1,
-        pageSize: 20,
-      }),
-    ).rejects.toThrow("Published book has no category relation.");
+    await expect(service.getBookBySlug("typescript-w-praktyce")).rejects.toThrow(message);
   });
 });
 
@@ -214,16 +232,32 @@ function createBook(): PublicBookRecord {
     authors: [
       {
         author: {
+          id: "author-1",
           displayName: "Marcin Kowalski",
           slug: "marcin-kowalski",
+        },
+      },
+      {
+        author: {
+          id: "author-2",
+          displayName: "Anna Nowak",
+          slug: "anna-nowak",
         },
       },
     ],
     categories: [
       {
         category: {
+          id: "category-1",
           name: "Programowanie",
           slug: "programowanie",
+        },
+      },
+      {
+        category: {
+          id: "category-2",
+          name: "Backend",
+          slug: "backend",
         },
       },
     ],

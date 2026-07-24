@@ -64,22 +64,36 @@ describe("Catalog API", () => {
     expect(getCategories).toHaveBeenCalledOnce();
   });
 
-  it("returns a paginated book list", async () => {
-    const getBooks = vi.fn().mockResolvedValue({
-      items: [],
-      pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
-    });
+  it("returns the public paginated book list contract", async () => {
+    const publicResponse = {
+      items: [
+        {
+          id: "book-id",
+          slug: "parable-of-the-sower",
+          title: "Parable of the Sower",
+          authors: [],
+          categories: [],
+          price: { amountMinor: 4590, currency: "PLN" },
+          format: "EPUB",
+          coverUrl: null,
+        },
+      ],
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        totalItems: 1,
+        totalPages: 1,
+      },
+    };
+    const getBooks = vi.fn().mockResolvedValue(publicResponse);
 
     app = await createApp({ getBooks, getBookBySlug: vi.fn() });
 
     const response = await request(app.getHttpServer()).get("/api/v1/books").expect(200);
 
-    expect(response.body.pagination).toEqual({
-      page: 1,
-      pageSize: 20,
-      total: 0,
-      totalPages: 0,
-    });
+    expect(response.body).toEqual(publicResponse);
+    expect(response.body.items[0]).not.toHaveProperty("coverKey");
+    expect(response.body.items[0]).not.toHaveProperty("status");
     expect(getBooks).toHaveBeenCalledWith({
       page: 1,
       pageSize: 20,
@@ -90,7 +104,12 @@ describe("Catalog API", () => {
   it("normalizes all catalog query parameters before calling the service", async () => {
     const getBooks = vi.fn().mockResolvedValue({
       items: [],
-      pagination: { page: 2, pageSize: 25, total: 0, totalPages: 0 },
+      pagination: {
+        page: 2,
+        pageSize: 25,
+        totalItems: 0,
+        totalPages: 0,
+      },
     });
 
     app = await createApp({ getBooks, getBookBySlug: vi.fn() });
@@ -114,7 +133,12 @@ describe("Catalog API", () => {
   it("omits empty optional filters before calling the service", async () => {
     const getBooks = vi.fn().mockResolvedValue({
       items: [],
-      pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        totalItems: 0,
+        totalPages: 0,
+      },
     });
 
     app = await createApp({ getBooks, getBookBySlug: vi.fn() });

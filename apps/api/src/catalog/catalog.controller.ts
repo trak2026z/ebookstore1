@@ -1,6 +1,6 @@
 import { BadRequestException, Controller, Get, Inject, Param, Query } from "@nestjs/common";
 
-import type { BookDetailsResponse, BookListResponse } from "@ebookstore/contracts";
+import type { BookDetailsResponse, PublicBookListResponse } from "@ebookstore/contracts";
 
 import { parseCatalogQuery } from "./catalog-query";
 import { CatalogService } from "./catalog.service";
@@ -13,7 +13,7 @@ export class CatalogController {
   ) {}
 
   @Get()
-  getBooks(@Query() rawQuery: Readonly<Record<string, unknown>>): Promise<BookListResponse> {
+  getBooks(@Query() rawQuery: Readonly<Record<string, unknown>>): Promise<PublicBookListResponse> {
     try {
       const query = parseCatalogQuery(rawQuery);
 
