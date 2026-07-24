@@ -32,6 +32,52 @@ export interface CategoryListResponse {
   readonly items: readonly CategoryListItem[];
 }
 
+export type PublicBookFormat = "PDF" | "EPUB";
+
+export interface PublicBookPrice {
+  readonly amountMinor: number;
+  readonly currency: string;
+}
+
+export interface PublicBookAuthor {
+  readonly id: string;
+  readonly displayName: string;
+  readonly slug: string;
+}
+
+export interface PublicBookCategory {
+  readonly id: string;
+  readonly name: string;
+  readonly slug: string;
+}
+
+export interface PublicBookListItem {
+  readonly id: string;
+  readonly slug: string;
+  readonly title: string;
+  readonly authors: readonly PublicBookAuthor[];
+  readonly categories: readonly PublicBookCategory[];
+  readonly price: PublicBookPrice;
+  readonly format: PublicBookFormat;
+  readonly coverUrl: string | null;
+}
+
+export interface PublicBookDetailsResponse extends PublicBookListItem {
+  readonly isbn: string;
+  readonly description: string;
+}
+
+export interface PublicBookListResponse {
+  readonly items: readonly PublicBookListItem[];
+  readonly pagination: {
+    readonly page: number;
+    readonly pageSize: number;
+    readonly totalItems: number;
+    readonly totalPages: number;
+  };
+}
+
+/** @deprecated Use PublicBookListItem for the Sprint 12 public API. */
 export interface BookListItem {
   readonly id: string;
   readonly title: string;
@@ -42,11 +88,13 @@ export interface BookListItem {
   readonly category: BookReference;
 }
 
+/** @deprecated Use PublicBookDetailsResponse for the Sprint 12 public API. */
 export interface BookDetailsResponse extends BookListItem {
   readonly description: string;
   readonly publishedAt: string | null;
 }
 
+/** @deprecated Use PublicBookListResponse for the Sprint 12 public API. */
 export interface BookListResponse {
   readonly items: readonly BookListItem[];
   readonly pagination: {
