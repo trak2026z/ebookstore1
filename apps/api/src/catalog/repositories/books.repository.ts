@@ -50,6 +50,11 @@ export interface PublishedBooksPage {
   readonly total: number;
 }
 
+export interface PublishedBookCoverRecord {
+  readonly id: string;
+  readonly coverKey: string | null;
+}
+
 @Injectable()
 export class BooksRepository {
   constructor(
@@ -84,6 +89,19 @@ export class BooksRepository {
         status: BookStatus.PUBLISHED,
       },
       include: PUBLIC_BOOK_RELATIONS,
+    });
+  }
+
+  findPublishedCoverById(bookId: string): Promise<PublishedBookCoverRecord | null> {
+    return this.database.prisma.book.findFirst({
+      where: {
+        id: bookId,
+        status: BookStatus.PUBLISHED,
+      },
+      select: {
+        id: true,
+        coverKey: true,
+      },
     });
   }
 }

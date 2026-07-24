@@ -35,3 +35,7 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+
+# Local cover storage
+storage/covers/*
+!storage/covers/.gitkeep

@@ -130,6 +130,24 @@ describe("BooksRepository", () => {
     });
   });
 
+  it("loads a published cover reference by book id", async () => {
+    const { database, findFirst } = createDatabaseMock();
+    const repository = new BooksRepository(database);
+
+    await repository.findPublishedCoverById("8ac42a9c-b736-4575-b7a9-b72f1168ad29");
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "8ac42a9c-b736-4575-b7a9-b72f1168ad29",
+        status: BookStatus.PUBLISHED,
+      },
+      select: {
+        id: true,
+        coverKey: true,
+      },
+    });
+  });
+
   it.each([
     [undefined, [{ createdAt: "desc" }, { id: "asc" }]],
     ["newest", [{ createdAt: "desc" }, { id: "asc" }]],

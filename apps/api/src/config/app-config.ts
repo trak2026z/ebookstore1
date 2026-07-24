@@ -6,4 +6,5 @@ export interface AppConfig {
   readonly nodeEnv: NodeEnvironment;
   readonly port: number;
   readonly databaseUrl: string;
+  readonly coverStorageRoot: string;
 }
