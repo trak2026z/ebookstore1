@@ -97,7 +97,7 @@ describe("Catalog API", () => {
 
     await request(app.getHttpServer())
       .get(
-        "/api/v1/books?page=%202%20&pageSize=%2025%20&category=%20fiction%20&author=%20ursula-le-guin%20&q=%20earthsea%20&sort=%20price-desc%20",
+        "/api/v1/books?page=%202%20&pageSize=%2025%20&category=%20fiction%20&author=%20ursula-le-guin%20&query=%20earthsea%20&sortBy=%20price%20&sortOrder=%20desc%20",
       )
       .expect(200);
 
@@ -119,7 +119,7 @@ describe("Catalog API", () => {
 
     app = await createApp({ getBooks, getBookBySlug: vi.fn() });
 
-    await request(app.getHttpServer()).get("/api/v1/books?q=%20%20&author=%20%20").expect(200);
+    await request(app.getHttpServer()).get("/api/v1/books?query=%20%20&author=%20%20").expect(200);
 
     expect(getBooks).toHaveBeenCalledWith({
       page: 1,
@@ -132,7 +132,12 @@ describe("Catalog API", () => {
     "/api/v1/books?page=0",
     "/api/v1/books?page=1.5",
     "/api/v1/books?pageSize=101",
-    "/api/v1/books?sort=unknown",
+    "/api/v1/books?sortBy=unknown",
+    "/api/v1/books?sortOrder=ascending",
+    "/api/v1/books?q=legacy",
+    "/api/v1/books?sort=price-desc",
+    "/api/v1/books?unknown=value",
+    "/api/v1/books?page=1&page=2",
   ])("rejects an invalid catalog query: %s", async (url) => {
     const getBooks = vi.fn();
 

@@ -150,6 +150,8 @@ function getBookOrderBy(sort: CatalogSort | undefined): Prisma.BookOrderByWithRe
       return [{ title: "asc" }, { id: "asc" }];
     case "title-desc":
       return [{ title: "desc" }, { id: "asc" }];
+    case "oldest":
+      return [{ createdAt: "asc" }, { id: "asc" }];
     case "newest":
     case undefined:
       return [{ createdAt: "desc" }, { id: "asc" }];

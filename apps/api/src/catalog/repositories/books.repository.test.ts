@@ -133,6 +133,7 @@ describe("BooksRepository", () => {
   it.each([
     [undefined, [{ createdAt: "desc" }, { id: "asc" }]],
     ["newest", [{ createdAt: "desc" }, { id: "asc" }]],
+    ["oldest", [{ createdAt: "asc" }, { id: "asc" }]],
     ["price-asc", [{ priceMinor: "asc" }, { id: "asc" }]],
     ["price-desc", [{ priceMinor: "desc" }, { id: "asc" }]],
     ["title-asc", [{ title: "asc" }, { id: "asc" }]],

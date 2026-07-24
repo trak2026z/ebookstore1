@@ -2,24 +2,22 @@ export const DEFAULT_CATALOG_PAGE = 1;
 export const DEFAULT_CATALOG_PAGE_SIZE = 20;
 export const MAX_CATALOG_PAGE_SIZE = 100;
 
+export const CATALOG_SORT_BY_VALUES = ["createdAt", "title", "price"] as const;
+export const CATALOG_SORT_ORDER_VALUES = ["asc", "desc"] as const;
 export const CATALOG_SORT_VALUES = [
   "newest",
+  "oldest",
   "title-asc",
   "title-desc",
   "price-asc",
   "price-desc",
 ] as const;
 
+export type CatalogSortBy = (typeof CATALOG_SORT_BY_VALUES)[number];
+export type CatalogSortOrder = (typeof CATALOG_SORT_ORDER_VALUES)[number];
 export type CatalogSort = (typeof CATALOG_SORT_VALUES)[number];
 
-export interface RawCatalogQuery {
-  readonly page?: string;
-  readonly pageSize?: string;
-  readonly category?: string;
-  readonly author?: string;
-  readonly q?: string;
-  readonly sort?: string;
-}
+export type RawCatalogQuery = Readonly<Record<string, unknown>>;
 
 export interface CatalogQuery {
   readonly page: number;
@@ -30,28 +28,69 @@ export interface CatalogQuery {
   readonly sort: CatalogSort;
 }
 
+const CATALOG_QUERY_PARAMETERS = [
+  "page",
+  "pageSize",
+  "query",
+  "category",
+  "author",
+  "sortBy",
+  "sortOrder",
+] as const;
+
+const CATALOG_QUERY_PARAMETER_SET: ReadonlySet<string> = new Set(CATALOG_QUERY_PARAMETERS);
+
 export function parseCatalogQuery(input: RawCatalogQuery): CatalogQuery {
-  const page = parsePositiveInteger(input.page, "page", DEFAULT_CATALOG_PAGE);
+  validateQueryParameterNames(input);
+
+  const page = parsePositiveInteger(
+    readOptionalString(input, "page"),
+    "page",
+    DEFAULT_CATALOG_PAGE,
+  );
   const pageSize = parsePositiveInteger(
-    input.pageSize,
+    readOptionalString(input, "pageSize"),
     "pageSize",
     DEFAULT_CATALOG_PAGE_SIZE,
     MAX_CATALOG_PAGE_SIZE,
   );
-  const sort = parseCatalogSort(input.sort);
+  const sortBy = parseCatalogSortBy(readOptionalString(input, "sortBy"));
+  const sortOrder = parseCatalogSortOrder(readOptionalString(input, "sortOrder"));
 
-  const category = normalizeOptionalText(input.category);
-  const author = normalizeOptionalText(input.author);
-  const q = normalizeOptionalText(input.q);
+  const category = normalizeOptionalText(readOptionalString(input, "category"));
+  const author = normalizeOptionalText(readOptionalString(input, "author"));
+  const q = normalizeOptionalText(readOptionalString(input, "query"));
 
   return {
     page,
     pageSize,
-    sort,
+    sort: mapCatalogSort(sortBy, sortOrder),
     ...(category === undefined ? {} : { category }),
     ...(author === undefined ? {} : { author }),
     ...(q === undefined ? {} : { q }),
   };
+}
+
+function validateQueryParameterNames(input: RawCatalogQuery): void {
+  for (const parameterName of Object.keys(input)) {
+    if (!CATALOG_QUERY_PARAMETER_SET.has(parameterName)) {
+      throw new Error(`Unsupported catalog query parameter: ${parameterName}`);
+    }
+  }
+}
+
+function readOptionalString(input: RawCatalogQuery, fieldName: string): string | undefined {
+  const value = input[fieldName];
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new Error(`${fieldName} must be a single string`);
+  }
+
+  return value;
 }
 
 function parsePositiveInteger(
@@ -83,22 +122,51 @@ function parsePositiveInteger(
   return parsedValue;
 }
 
-function parseCatalogSort(value: string | undefined): CatalogSort {
+function parseCatalogSortBy(value: string | undefined): CatalogSortBy {
   if (value === undefined) {
-    return "newest";
+    return "createdAt";
   }
 
   const normalizedValue = value.trim();
 
-  if (!isCatalogSort(normalizedValue)) {
-    throw new Error(`sort must be one of: ${CATALOG_SORT_VALUES.join(", ")}`);
+  if (!isCatalogSortBy(normalizedValue)) {
+    throw new Error(`sortBy must be one of: ${CATALOG_SORT_BY_VALUES.join(", ")}`);
   }
 
   return normalizedValue;
 }
 
-function isCatalogSort(value: string): value is CatalogSort {
-  return CATALOG_SORT_VALUES.some((sort) => sort === value);
+function parseCatalogSortOrder(value: string | undefined): CatalogSortOrder {
+  if (value === undefined) {
+    return "desc";
+  }
+
+  const normalizedValue = value.trim();
+
+  if (!isCatalogSortOrder(normalizedValue)) {
+    throw new Error(`sortOrder must be one of: ${CATALOG_SORT_ORDER_VALUES.join(", ")}`);
+  }
+
+  return normalizedValue;
+}
+
+function mapCatalogSort(sortBy: CatalogSortBy, sortOrder: CatalogSortOrder): CatalogSort {
+  switch (sortBy) {
+    case "createdAt":
+      return sortOrder === "asc" ? "oldest" : "newest";
+    case "title":
+      return sortOrder === "asc" ? "title-asc" : "title-desc";
+    case "price":
+      return sortOrder === "asc" ? "price-asc" : "price-desc";
+  }
+}
+
+function isCatalogSortBy(value: string): value is CatalogSortBy {
+  return CATALOG_SORT_BY_VALUES.some((sortBy) => sortBy === value);
+}
+
+function isCatalogSortOrder(value: string): value is CatalogSortOrder {
+  return CATALOG_SORT_ORDER_VALUES.some((sortOrder) => sortOrder === value);
 }
 
 function normalizeOptionalText(value: string | undefined): string | undefined {

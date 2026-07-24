@@ -13,23 +13,9 @@ export class CatalogController {
   ) {}
 
   @Get()
-  getBooks(
-    @Query("page") page?: string,
-    @Query("pageSize") pageSize?: string,
-    @Query("category") category?: string,
-    @Query("author") author?: string,
-    @Query("q") q?: string,
-    @Query("sort") sort?: string,
-  ): Promise<BookListResponse> {
+  getBooks(@Query() rawQuery: Readonly<Record<string, unknown>>): Promise<BookListResponse> {
     try {
-      const query = parseCatalogQuery({
-        ...(page === undefined ? {} : { page }),
-        ...(pageSize === undefined ? {} : { pageSize }),
-        ...(category === undefined ? {} : { category }),
-        ...(author === undefined ? {} : { author }),
-        ...(q === undefined ? {} : { q }),
-        ...(sort === undefined ? {} : { sort }),
-      });
+      const query = parseCatalogQuery(rawQuery);
 
       return this.catalog.getBooks({
         page: query.page,
