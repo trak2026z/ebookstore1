@@ -1,15 +1,9 @@
-import {
-  Inject,
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-} from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 
 import type {
   AuthorListResponse,
-  BookDetailsResponse,
-  BookListItem,
   CategoryListResponse,
+  PublicBookDetailsResponse,
   PublicBookListItem,
   PublicBookListResponse,
 } from "@ebookstore/contracts";
@@ -72,18 +66,17 @@ export class CatalogService {
     };
   }
 
-  async getBookBySlug(slug: string): Promise<BookDetailsResponse> {
+  async getBookBySlug(slug: string): Promise<PublicBookDetailsResponse> {
     const book = await this.booksRepository.findPublishedBySlug(slug);
 
     if (book === null) {
-      throw new NotFoundException("Book not found.");
+      throw new NotFoundException({
+        code: "BOOK_NOT_FOUND",
+        message: "Book not found.",
+      });
     }
 
-    return {
-      ...mapLegacyBook(book),
-      description: book.description,
-      publishedAt: book.publishedAt?.toISOString() ?? null,
-    };
+    return mapPublicBookDetails(book);
   }
 }
 
@@ -111,31 +104,10 @@ function mapPublicBookListItem(book: PublicBookRecord): PublicBookListItem {
   };
 }
 
-function mapLegacyBook(book: PublicBookRecord): BookListItem {
-  const primaryAuthor = book.authors[0]?.author;
-  const primaryCategory = book.categories[0]?.category;
-
-  if (primaryAuthor === undefined) {
-    throw new InternalServerErrorException("Published book has no author relation.");
-  }
-
-  if (primaryCategory === undefined) {
-    throw new InternalServerErrorException("Published book has no category relation.");
-  }
-
+function mapPublicBookDetails(book: PublicBookRecord): PublicBookDetailsResponse {
   return {
-    id: book.id,
-    title: book.title,
-    slug: book.slug,
-    priceCents: book.priceMinor,
-    coverUrl: book.coverUrl,
-    author: {
-      name: primaryAuthor.displayName,
-      slug: primaryAuthor.slug,
-    },
-    category: {
-      name: primaryCategory.name,
-      slug: primaryCategory.slug,
-    },
+    ...mapPublicBookListItem(book),
+    isbn: book.isbn,
+    description: book.description,
   };
 }

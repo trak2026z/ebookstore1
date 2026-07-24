@@ -1,3 +1,4 @@
+import { NotFoundException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 
 import { CatalogService } from "./catalog.service";
@@ -135,46 +136,89 @@ describe("CatalogService", () => {
     });
   });
 
-  it("returns published book details through the legacy contract", async () => {
-    const { service, findPublishedBySlug } = createService();
-    findPublishedBySlug.mockResolvedValue(createBook());
-
-    await expect(service.getBookBySlug("typescript-w-praktyce")).resolves.toEqual({
-      id: "book-id",
-      title: "TypeScript w praktyce",
-      slug: "typescript-w-praktyce",
-      priceCents: 7990,
-      coverUrl: null,
-      author: {
-        name: "Marcin Kowalski",
-        slug: "marcin-kowalski",
-      },
-      category: {
-        name: "Programowanie",
-        slug: "programowanie",
-      },
-      description: "Opis książki.",
-      publishedAt: "2026-07-17T00:00:00.000Z",
-    });
-  });
-
-  it("throws when a published book does not exist", async () => {
-    const { service } = createService();
-
-    await expect(service.getBookBySlug("missing-book")).rejects.toThrow("Book not found.");
-  });
-
-  it.each([
-    ["authors", "Published book has no author relation."],
-    ["categories", "Published book has no category relation."],
-  ] as const)("keeps legacy details closed without %s", async (relation, message) => {
+  it("maps published book details to the public contract", async () => {
     const { service, findPublishedBySlug } = createService();
     findPublishedBySlug.mockResolvedValue({
       ...createBook(),
-      [relation]: [],
+      coverKey: "private/covers/typescript.epub",
+      coverUrl: "https://storage.example/private-cover",
     });
 
-    await expect(service.getBookBySlug("typescript-w-praktyce")).rejects.toThrow(message);
+    await expect(service.getBookBySlug("typescript-w-praktyce")).resolves.toEqual({
+      id: "book-id",
+      slug: "typescript-w-praktyce",
+      title: "TypeScript w praktyce",
+      isbn: "9780000000002",
+      description: "Opis książki.",
+      authors: [
+        {
+          id: "author-1",
+          displayName: "Marcin Kowalski",
+          slug: "marcin-kowalski",
+        },
+        {
+          id: "author-2",
+          displayName: "Anna Nowak",
+          slug: "anna-nowak",
+        },
+      ],
+      categories: [
+        {
+          id: "category-1",
+          name: "Programowanie",
+          slug: "programowanie",
+        },
+        {
+          id: "category-2",
+          name: "Backend",
+          slug: "backend",
+        },
+      ],
+      price: {
+        amountMinor: 7990,
+        currency: "PLN",
+      },
+      format: "EPUB",
+      coverUrl: null,
+    });
+    expect(findPublishedBySlug).toHaveBeenCalledWith("typescript-w-praktyce");
+  });
+
+  it("returns empty public relation arrays in book details", async () => {
+    const { service, findPublishedBySlug } = createService();
+    findPublishedBySlug.mockResolvedValue({
+      ...createBook(),
+      authors: [],
+      categories: [],
+    });
+
+    const response = await service.getBookBySlug("typescript-w-praktyce");
+
+    expect(response).toMatchObject({
+      authors: [],
+      categories: [],
+    });
+  });
+
+  it("throws BOOK_NOT_FOUND when a published book does not exist", async () => {
+    const { service } = createService();
+
+    try {
+      await service.getBookBySlug("missing-book");
+      throw new Error("Expected getBookBySlug to reject.");
+    } catch (error: unknown) {
+      expect(error).toBeInstanceOf(NotFoundException);
+
+      if (!(error instanceof NotFoundException)) {
+        return;
+      }
+
+      expect(error.getStatus()).toBe(404);
+      expect(error.getResponse()).toEqual({
+        code: "BOOK_NOT_FOUND",
+        message: "Book not found.",
+      });
+    }
   });
 });
 

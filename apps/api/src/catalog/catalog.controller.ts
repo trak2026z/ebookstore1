@@ -1,6 +1,6 @@
 import { BadRequestException, Controller, Get, Inject, Param, Query } from "@nestjs/common";
 
-import type { BookDetailsResponse, PublicBookListResponse } from "@ebookstore/contracts";
+import type { PublicBookDetailsResponse, PublicBookListResponse } from "@ebookstore/contracts";
 
 import { parseCatalogQuery } from "./catalog-query";
 import { CatalogService } from "./catalog.service";
@@ -35,7 +35,7 @@ export class CatalogController {
   }
 
   @Get(":slug")
-  getBook(@Param("slug") slug: string): Promise<BookDetailsResponse> {
+  getBook(@Param("slug") slug: string): Promise<PublicBookDetailsResponse> {
     return this.catalog.getBookBySlug(slug);
   }
 }

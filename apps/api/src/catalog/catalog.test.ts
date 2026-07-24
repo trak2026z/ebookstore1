@@ -1,4 +1,4 @@
-import type { INestApplication } from "@nestjs/common";
+import { NotFoundException, type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -99,6 +99,79 @@ describe("Catalog API", () => {
       pageSize: 20,
       sort: "newest",
     });
+  });
+
+  it("returns public book details by slug", async () => {
+    const publicResponse = {
+      id: "book-id",
+      slug: "parable-of-the-sower",
+      title: "Parable of the Sower",
+      isbn: "9780000000002",
+      description: "A dystopian novel.",
+      authors: [
+        {
+          id: "author-1",
+          displayName: "Octavia E. Butler",
+          slug: "octavia-e-butler",
+        },
+      ],
+      categories: [
+        {
+          id: "category-1",
+          name: "Science Fiction",
+          slug: "science-fiction",
+        },
+      ],
+      price: {
+        amountMinor: 4590,
+        currency: "PLN",
+      },
+      format: "EPUB",
+      coverUrl: null,
+    };
+    const getBookBySlug = vi.fn().mockResolvedValue(publicResponse);
+
+    app = await createApp({
+      getBooks: vi.fn(),
+      getBookBySlug,
+    });
+
+    const response = await request(app.getHttpServer())
+      .get("/api/v1/books/parable-of-the-sower")
+      .expect(200);
+
+    expect(response.body).toEqual(publicResponse);
+    expect(response.body).not.toHaveProperty("coverKey");
+    expect(response.body).not.toHaveProperty("status");
+    expect(response.body).not.toHaveProperty("publishedAt");
+    expect(response.body).not.toHaveProperty("priceMinor");
+    expect(getBookBySlug).toHaveBeenCalledWith("parable-of-the-sower");
+  });
+
+  it("returns BOOK_NOT_FOUND for a non-public book slug", async () => {
+    const getBookBySlug = vi.fn().mockRejectedValue(
+      new NotFoundException({
+        code: "BOOK_NOT_FOUND",
+        message: "Book not found.",
+      }),
+    );
+
+    app = await createApp({
+      getBooks: vi.fn(),
+      getBookBySlug,
+    });
+
+    const response = await request(app.getHttpServer())
+      .get("/api/v1/books/missing-book")
+      .expect(404);
+
+    expect(response.body).toEqual({
+      code: "BOOK_NOT_FOUND",
+      message: "Book not found.",
+      requestId: expect.any(String),
+      details: [],
+    });
+    expect(getBookBySlug).toHaveBeenCalledWith("missing-book");
   });
 
   it("normalizes all catalog query parameters before calling the service", async () => {

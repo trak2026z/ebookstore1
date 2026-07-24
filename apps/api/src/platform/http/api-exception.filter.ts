@@ -55,14 +55,17 @@ export class ApiExceptionFilter implements ExceptionFilter {
     }
 
     const responseBody = exceptionResponse as Record<string, unknown>;
+    const codeValue = responseBody["code"];
     const messageValue = responseBody["message"];
 
     const messages = Array.isArray(messageValue)
       ? messageValue.filter((value): value is string => typeof value === "string")
       : [];
 
+    const explicitCode = typeof codeValue === "string" ? codeValue.trim() : "";
+
     return {
-      code: this.codeFromStatus(exception.getStatus()),
+      code: explicitCode || this.codeFromStatus(exception.getStatus()),
       message: typeof messageValue === "string" ? messageValue : (messages[0] ?? exception.message),
       requestId,
       details: messages,
