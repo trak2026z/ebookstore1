@@ -100,8 +100,15 @@ function mapPublicBookListItem(book: PublicBookRecord): PublicBookListItem {
       currency: book.currency,
     },
     format: book.format,
-    coverUrl: null,
+    coverUrl: getPublicCoverUrl(book),
   };
+}
+
+function getPublicCoverUrl(book: {
+  readonly id: string;
+  readonly coverKey: string | null;
+}): string | null {
+  return book.coverKey === null ? null : `/api/v1/books/${book.id}/cover`;
 }
 
 function mapPublicBookDetails(book: PublicBookRecord): PublicBookDetailsResponse {

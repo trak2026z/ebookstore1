@@ -65,7 +65,7 @@ describe("CatalogService", () => {
     });
 
     expect(response.items[0]).toEqual({
-      id: "book-id",
+      id: "7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71",
       slug: "typescript-w-praktyce",
       title: "TypeScript w praktyce",
       authors: [
@@ -97,7 +97,7 @@ describe("CatalogService", () => {
         currency: "PLN",
       },
       format: "EPUB",
-      coverUrl: null,
+      coverUrl: "/api/v1/books/7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71/cover",
     });
     expect(response.pagination).toEqual({
       page: 2,
@@ -120,6 +120,7 @@ describe("CatalogService", () => {
           ...createBook(),
           authors: [],
           categories: [],
+          coverUrl: "https://storage.example/private-cover",
         },
       ],
       total: 1,
@@ -133,6 +134,7 @@ describe("CatalogService", () => {
     expect(response.items[0]).toMatchObject({
       authors: [],
       categories: [],
+      coverUrl: null,
     });
   });
 
@@ -145,7 +147,7 @@ describe("CatalogService", () => {
     });
 
     await expect(service.getBookBySlug("typescript-w-praktyce")).resolves.toEqual({
-      id: "book-id",
+      id: "7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71",
       slug: "typescript-w-praktyce",
       title: "TypeScript w praktyce",
       isbn: "9780000000002",
@@ -179,7 +181,7 @@ describe("CatalogService", () => {
         currency: "PLN",
       },
       format: "EPUB",
-      coverUrl: null,
+      coverUrl: "/api/v1/books/7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71/cover",
     });
     expect(findPublishedBySlug).toHaveBeenCalledWith("typescript-w-praktyce");
   });
@@ -190,6 +192,7 @@ describe("CatalogService", () => {
       ...createBook(),
       authors: [],
       categories: [],
+      coverUrl: "https://storage.example/private-cover",
     });
 
     const response = await service.getBookBySlug("typescript-w-praktyce");
@@ -197,6 +200,7 @@ describe("CatalogService", () => {
     expect(response).toMatchObject({
       authors: [],
       categories: [],
+      coverUrl: null,
     });
   });
 
@@ -259,7 +263,7 @@ function createService(): {
 
 function createBook(): PublicBookRecord {
   return {
-    id: "book-id",
+    id: "7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71",
     title: "TypeScript w praktyce",
     slug: "typescript-w-praktyce",
     isbn: "9780000000002",

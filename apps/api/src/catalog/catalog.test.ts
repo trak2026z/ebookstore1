@@ -68,14 +68,14 @@ describe("Catalog API", () => {
     const publicResponse = {
       items: [
         {
-          id: "book-id",
+          id: "7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71",
           slug: "parable-of-the-sower",
           title: "Parable of the Sower",
           authors: [],
           categories: [],
           price: { amountMinor: 4590, currency: "PLN" },
           format: "EPUB",
-          coverUrl: null,
+          coverUrl: "/api/v1/books/7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71/cover",
         },
       ],
       pagination: {
@@ -103,7 +103,7 @@ describe("Catalog API", () => {
 
   it("returns public book details by slug", async () => {
     const publicResponse = {
-      id: "book-id",
+      id: "7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71",
       slug: "parable-of-the-sower",
       title: "Parable of the Sower",
       isbn: "9780000000002",
@@ -127,7 +127,7 @@ describe("Catalog API", () => {
         currency: "PLN",
       },
       format: "EPUB",
-      coverUrl: null,
+      coverUrl: "/api/v1/books/7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71/cover",
     };
     const getBookBySlug = vi.fn().mockResolvedValue(publicResponse);
 
