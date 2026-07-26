@@ -1,3 +1,5 @@
+import { isAbsolute, resolve } from "node:path";
+
 import type { AppConfig, NodeEnvironment } from "./app-config";
 
 const SUPPORTED_NODE_ENVIRONMENTS: readonly NodeEnvironment[] = [
@@ -14,6 +16,7 @@ export function parseEnvironment(environment: NodeJS.ProcessEnv): AppConfig {
     nodeEnv: parseNodeEnvironment(environment["NODE_ENV"]),
     port: parsePort(environment["PORT"]),
     databaseUrl: parseDatabaseUrl(environment["DATABASE_URL"]),
+    coverStorageRoot: parseCoverStorageRoot(environment["COVER_STORAGE_ROOT"]),
   };
 }
 
@@ -61,4 +64,18 @@ function parseDatabaseUrl(value: string | undefined): string {
   }
 
   return value;
+}
+
+function parseCoverStorageRoot(value: string | undefined): string {
+  const storageRoot = value?.trim();
+
+  if (storageRoot === undefined || storageRoot.length === 0) {
+    throw new Error("COVER_STORAGE_ROOT is required.");
+  }
+
+  if (!isAbsolute(storageRoot)) {
+    throw new Error("COVER_STORAGE_ROOT must be an absolute path.");
+  }
+
+  return resolve(storageRoot);
 }

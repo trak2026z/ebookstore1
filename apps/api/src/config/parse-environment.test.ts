@@ -6,6 +6,7 @@ const validEnvironment: NodeJS.ProcessEnv = {
   NODE_ENV: "development",
   PORT: "3001",
   DATABASE_URL: "postgresql://ebookstore:ebookstore_dev@postgres:5432/ebookstore",
+  COVER_STORAGE_ROOT: "/workspace/storage",
 };
 
 describe("parseEnvironment", () => {
@@ -14,6 +15,7 @@ describe("parseEnvironment", () => {
       nodeEnv: "development",
       port: 3001,
       databaseUrl: "postgresql://ebookstore:ebookstore_dev@postgres:5432/ebookstore",
+      coverStorageRoot: "/workspace/storage",
     });
   });
 
@@ -51,6 +53,34 @@ describe("parseEnvironment", () => {
           DATABASE_URL: databaseUrl,
         }),
       ).toThrow("DATABASE_URL must");
+    },
+  );
+
+  it("rejects a missing cover storage root", () => {
+    const environment = { ...validEnvironment };
+    delete environment.COVER_STORAGE_ROOT;
+
+    expect(() => parseEnvironment(environment)).toThrow("COVER_STORAGE_ROOT is required.");
+  });
+
+  it("rejects a blank cover storage root", () => {
+    expect(() =>
+      parseEnvironment({
+        ...validEnvironment,
+        COVER_STORAGE_ROOT: "",
+      }),
+    ).toThrow("COVER_STORAGE_ROOT is required.");
+  });
+
+  it.each(["storage", "./storage"])(
+    "rejects non-absolute COVER_STORAGE_ROOT value %j",
+    (coverStorageRoot) => {
+      expect(() =>
+        parseEnvironment({
+          ...validEnvironment,
+          COVER_STORAGE_ROOT: coverStorageRoot,
+        }),
+      ).toThrow("COVER_STORAGE_ROOT must be an absolute path.");
     },
   );
 });

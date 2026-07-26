@@ -1,3 +1,4 @@
+import { NotFoundException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 
 import { CatalogService } from "./catalog.service";
@@ -44,45 +45,66 @@ describe("CatalogService", () => {
     });
   });
 
-  it("maps a repository page and calculates pagination", async () => {
+  it("maps all public book relations and calculates pagination", async () => {
     const { service, findPublishedPage } = createService();
     findPublishedPage.mockResolvedValue({
-      items: [createBook()],
+      items: [
+        {
+          ...createBook(),
+          coverKey: "private/covers/typescript.epub",
+          coverUrl: "https://storage.example/private-cover",
+        },
+      ],
       total: 21,
     });
 
-    await expect(
-      service.getBooks({
-        page: 2,
-        pageSize: 10,
-        author: "marcin-kowalski",
-      }),
-    ).resolves.toEqual({
-      items: [
-        {
-          id: "book-id",
-          title: "TypeScript w praktyce",
-          slug: "typescript-w-praktyce",
-          priceCents: 7990,
-          coverUrl: null,
-          author: {
-            name: "Marcin Kowalski",
-            slug: "marcin-kowalski",
-          },
-          category: {
-            name: "Programowanie",
-            slug: "programowanie",
-          },
-        },
-      ],
-      pagination: {
-        page: 2,
-        pageSize: 10,
-        total: 21,
-        totalPages: 3,
-      },
+    const response = await service.getBooks({
+      page: 2,
+      pageSize: 10,
+      author: "marcin-kowalski",
     });
 
+    expect(response.items[0]).toEqual({
+      id: "7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71",
+      slug: "typescript-w-praktyce",
+      title: "TypeScript w praktyce",
+      authors: [
+        {
+          id: "author-1",
+          displayName: "Marcin Kowalski",
+          slug: "marcin-kowalski",
+        },
+        {
+          id: "author-2",
+          displayName: "Anna Nowak",
+          slug: "anna-nowak",
+        },
+      ],
+      categories: [
+        {
+          id: "category-1",
+          name: "Programowanie",
+          slug: "programowanie",
+        },
+        {
+          id: "category-2",
+          name: "Backend",
+          slug: "backend",
+        },
+      ],
+      price: {
+        amountMinor: 7990,
+        currency: "PLN",
+      },
+      format: "EPUB",
+      coverUrl: "/api/v1/books/7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71/cover",
+    });
+    expect(response.pagination).toEqual({
+      page: 2,
+      pageSize: 10,
+      totalItems: 21,
+      totalPages: 3,
+    });
     expect(findPublishedPage).toHaveBeenCalledWith({
       page: 2,
       pageSize: 10,
@@ -90,73 +112,117 @@ describe("CatalogService", () => {
     });
   });
 
-  it("returns published book details", async () => {
-    const { service, findPublishedBySlug } = createService();
-    findPublishedBySlug.mockResolvedValue(createBook());
-
-    await expect(service.getBookBySlug("typescript-w-praktyce")).resolves.toEqual({
-      id: "book-id",
-      title: "TypeScript w praktyce",
-      slug: "typescript-w-praktyce",
-      priceCents: 7990,
-      coverUrl: null,
-      author: {
-        name: "Marcin Kowalski",
-        slug: "marcin-kowalski",
-      },
-      category: {
-        name: "Programowanie",
-        slug: "programowanie",
-      },
-      description: "Opis książki.",
-      publishedAt: "2026-07-17T00:00:00.000Z",
-    });
-  });
-
-  it("throws when a published book does not exist", async () => {
-    const { service } = createService();
-
-    await expect(service.getBookBySlug("missing-book")).rejects.toThrow("Book not found.");
-  });
-
-  it("fails closed when a published book has no author", async () => {
+  it("returns empty public relation arrays without failing the list", async () => {
     const { service, findPublishedPage } = createService();
     findPublishedPage.mockResolvedValue({
       items: [
         {
           ...createBook(),
           authors: [],
+          categories: [],
+          coverUrl: "https://storage.example/private-cover",
         },
       ],
       total: 1,
     });
 
-    await expect(
-      service.getBooks({
-        page: 1,
-        pageSize: 20,
-      }),
-    ).rejects.toThrow("Published book has no author relation.");
+    const response = await service.getBooks({
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(response.items[0]).toMatchObject({
+      authors: [],
+      categories: [],
+      coverUrl: null,
+    });
   });
 
-  it("fails closed when a published book has no category", async () => {
-    const { service, findPublishedPage } = createService();
-    findPublishedPage.mockResolvedValue({
-      items: [
-        {
-          ...createBook(),
-          categories: [],
-        },
-      ],
-      total: 1,
+  it("maps published book details to the public contract", async () => {
+    const { service, findPublishedBySlug } = createService();
+    findPublishedBySlug.mockResolvedValue({
+      ...createBook(),
+      coverKey: "private/covers/typescript.epub",
+      coverUrl: "https://storage.example/private-cover",
     });
 
-    await expect(
-      service.getBooks({
-        page: 1,
-        pageSize: 20,
-      }),
-    ).rejects.toThrow("Published book has no category relation.");
+    await expect(service.getBookBySlug("typescript-w-praktyce")).resolves.toEqual({
+      id: "7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71",
+      slug: "typescript-w-praktyce",
+      title: "TypeScript w praktyce",
+      isbn: "9780000000002",
+      description: "Opis książki.",
+      authors: [
+        {
+          id: "author-1",
+          displayName: "Marcin Kowalski",
+          slug: "marcin-kowalski",
+        },
+        {
+          id: "author-2",
+          displayName: "Anna Nowak",
+          slug: "anna-nowak",
+        },
+      ],
+      categories: [
+        {
+          id: "category-1",
+          name: "Programowanie",
+          slug: "programowanie",
+        },
+        {
+          id: "category-2",
+          name: "Backend",
+          slug: "backend",
+        },
+      ],
+      price: {
+        amountMinor: 7990,
+        currency: "PLN",
+      },
+      format: "EPUB",
+      coverUrl: "/api/v1/books/7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71/cover",
+    });
+    expect(findPublishedBySlug).toHaveBeenCalledWith("typescript-w-praktyce");
+  });
+
+  it("returns empty public relation arrays in book details", async () => {
+    const { service, findPublishedBySlug } = createService();
+    findPublishedBySlug.mockResolvedValue({
+      ...createBook(),
+      authors: [],
+      categories: [],
+      coverUrl: "https://storage.example/private-cover",
+    });
+
+    const response = await service.getBookBySlug("typescript-w-praktyce");
+
+    expect(response).toMatchObject({
+      authors: [],
+      categories: [],
+      coverUrl: null,
+    });
+  });
+
+  it("throws BOOK_NOT_FOUND when a published book does not exist", async () => {
+    const { service } = createService();
+
+    try {
+      await service.getBookBySlug("missing-book");
+      throw new Error("Expected getBookBySlug to reject.");
+    } catch (error: unknown) {
+      expect(error).toBeInstanceOf(NotFoundException);
+
+      if (!(error instanceof NotFoundException)) {
+        return;
+      }
+
+      expect(error.getStatus()).toBe(404);
+      expect(error.getResponse()).toEqual({
+        code: "BOOK_NOT_FOUND",
+        message: "Book not found.",
+      });
+    }
   });
 });
 
@@ -197,7 +263,7 @@ function createService(): {
 
 function createBook(): PublicBookRecord {
   return {
-    id: "book-id",
+    id: "7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71",
     title: "TypeScript w praktyce",
     slug: "typescript-w-praktyce",
     isbn: "9780000000002",
@@ -214,16 +280,32 @@ function createBook(): PublicBookRecord {
     authors: [
       {
         author: {
+          id: "author-1",
           displayName: "Marcin Kowalski",
           slug: "marcin-kowalski",
+        },
+      },
+      {
+        author: {
+          id: "author-2",
+          displayName: "Anna Nowak",
+          slug: "anna-nowak",
         },
       },
     ],
     categories: [
       {
         category: {
+          id: "category-1",
           name: "Programowanie",
           slug: "programowanie",
+        },
+      },
+      {
+        category: {
+          id: "category-2",
+          name: "Backend",
+          slug: "backend",
         },
       },
     ],

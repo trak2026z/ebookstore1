@@ -1,16 +1,11 @@
-import {
-  Inject,
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-} from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 
 import type {
   AuthorListResponse,
-  BookDetailsResponse,
-  BookListItem,
-  BookListResponse,
   CategoryListResponse,
+  PublicBookDetailsResponse,
+  PublicBookListItem,
+  PublicBookListResponse,
 } from "@ebookstore/contracts";
 
 import type { CatalogSort } from "./catalog-query";
@@ -57,60 +52,69 @@ export class CatalogService {
     };
   }
 
-  async getBooks(query: GetBooksQuery): Promise<BookListResponse> {
+  async getBooks(query: GetBooksQuery): Promise<PublicBookListResponse> {
     const page = await this.booksRepository.findPublishedPage(query);
 
     return {
-      items: page.items.map(mapBook),
+      items: page.items.map(mapPublicBookListItem),
       pagination: {
         page: query.page,
         pageSize: query.pageSize,
-        total: page.total,
+        totalItems: page.total,
         totalPages: Math.ceil(page.total / query.pageSize),
       },
     };
   }
 
-  async getBookBySlug(slug: string): Promise<BookDetailsResponse> {
+  async getBookBySlug(slug: string): Promise<PublicBookDetailsResponse> {
     const book = await this.booksRepository.findPublishedBySlug(slug);
 
     if (book === null) {
-      throw new NotFoundException("Book not found.");
+      throw new NotFoundException({
+        code: "BOOK_NOT_FOUND",
+        message: "Book not found.",
+      });
     }
 
-    return {
-      ...mapBook(book),
-      description: book.description,
-      publishedAt: book.publishedAt?.toISOString() ?? null,
-    };
+    return mapPublicBookDetails(book);
   }
 }
 
-function mapBook(book: PublicBookRecord): BookListItem {
-  const primaryAuthor = book.authors[0]?.author;
-  const primaryCategory = book.categories[0]?.category;
-
-  if (primaryAuthor === undefined) {
-    throw new InternalServerErrorException("Published book has no author relation.");
-  }
-
-  if (primaryCategory === undefined) {
-    throw new InternalServerErrorException("Published book has no category relation.");
-  }
-
+function mapPublicBookListItem(book: PublicBookRecord): PublicBookListItem {
   return {
     id: book.id,
-    title: book.title,
     slug: book.slug,
-    priceCents: book.priceMinor,
-    coverUrl: book.coverUrl,
-    author: {
-      name: primaryAuthor.displayName,
-      slug: primaryAuthor.slug,
+    title: book.title,
+    authors: book.authors.map(({ author }) => ({
+      id: author.id,
+      displayName: author.displayName,
+      slug: author.slug,
+    })),
+    categories: book.categories.map(({ category }) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+    })),
+    price: {
+      amountMinor: book.priceMinor,
+      currency: book.currency,
     },
-    category: {
-      name: primaryCategory.name,
-      slug: primaryCategory.slug,
-    },
+    format: book.format,
+    coverUrl: getPublicCoverUrl(book),
+  };
+}
+
+function getPublicCoverUrl(book: {
+  readonly id: string;
+  readonly coverKey: string | null;
+}): string | null {
+  return book.coverKey === null ? null : `/api/v1/books/${book.id}/cover`;
+}
+
+function mapPublicBookDetails(book: PublicBookRecord): PublicBookDetailsResponse {
+  return {
+    ...mapPublicBookListItem(book),
+    isbn: book.isbn,
+    description: book.description,
   };
 }

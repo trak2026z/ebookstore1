@@ -16,8 +16,10 @@ services:
       DATABASE_URL: postgresql://ebookstore:ebookstore_dev@postgres:5432/ebookstore
       JWT_SECRET: development-only-secret-change-before-production
       JWT_ACCESS_TOKEN_TTL_SECONDS: "900"
+      COVER_STORAGE_ROOT: /workspace/storage
     volumes:
       - .:/workspace
+      - ./storage:/workspace/storage:ro
       - node_modules:/workspace/node_modules
     depends_on:
       postgres:
@@ -40,10 +42,12 @@ services:
       DATABASE_URL: postgresql://ebookstore:ebookstore_dev@postgres:5432/ebookstore
       JWT_SECRET: development-only-secret-change-before-production
       JWT_ACCESS_TOKEN_TTL_SECONDS: "900"
+      COVER_STORAGE_ROOT: /workspace/storage
     ports:
       - "3001:3001"
     volumes:
       - .:/workspace
+      - ./storage:/workspace/storage:ro
       - node_modules:/workspace/node_modules
     depends_on:
       postgres:

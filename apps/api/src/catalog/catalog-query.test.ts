@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  CATALOG_SORT_VALUES,
+  CATALOG_SORT_BY_VALUES,
+  CATALOG_SORT_ORDER_VALUES,
   DEFAULT_CATALOG_PAGE,
   DEFAULT_CATALOG_PAGE_SIZE,
   parseCatalogQuery,
@@ -21,7 +22,8 @@ describe("parseCatalogQuery", () => {
       parseCatalogQuery({
         page: "2",
         pageSize: "40",
-        sort: "price-desc",
+        sortBy: "price",
+        sortOrder: "desc",
       }),
     ).toEqual({
       page: 2,
@@ -37,8 +39,9 @@ describe("parseCatalogQuery", () => {
         pageSize: " 25 ",
         category: " fiction ",
         author: " ursula-le-guin ",
-        q: " left hand ",
-        sort: " title-asc ",
+        query: " left hand ",
+        sortBy: " title ",
+        sortOrder: " asc ",
       }),
     ).toEqual({
       page: 3,
@@ -54,7 +57,7 @@ describe("parseCatalogQuery", () => {
     const result = parseCatalogQuery({
       category: "",
       author: "   ",
-      q: "\t",
+      query: "\t",
     });
 
     expect(result).toEqual({
@@ -88,13 +91,52 @@ describe("parseCatalogQuery", () => {
     );
   });
 
-  it.each(CATALOG_SORT_VALUES)("accepts the %s sorting value", (sort) => {
-    expect(parseCatalogQuery({ sort }).sort).toBe(sort);
+  it.each([
+    ["createdAt", "asc", "oldest"],
+    ["createdAt", "desc", "newest"],
+    ["title", "asc", "title-asc"],
+    ["title", "desc", "title-desc"],
+    ["price", "asc", "price-asc"],
+    ["price", "desc", "price-desc"],
+  ] as const)("maps sortBy=%s and sortOrder=%s to %s", (sortBy, sortOrder, expectedSort) => {
+    expect(parseCatalogQuery({ sortBy, sortOrder }).sort).toBe(expectedSort);
   });
 
-  it.each(["unknown", "", "TITLE-ASC", "price"])("rejects invalid sorting value %j", (sort) => {
-    expect(() => parseCatalogQuery({ sort })).toThrow(
-      "sort must be one of: newest, title-asc, title-desc, price-asc, price-desc",
+  it.each(CATALOG_SORT_BY_VALUES)("accepts sortBy=%s", (sortBy) => {
+    expect(() => parseCatalogQuery({ sortBy })).not.toThrow();
+  });
+
+  it.each(CATALOG_SORT_ORDER_VALUES)("accepts sortOrder=%s", (sortOrder) => {
+    expect(() => parseCatalogQuery({ sortOrder })).not.toThrow();
+  });
+
+  it.each(["unknown", "", "TITLE", "date"])("rejects invalid sortBy value %j", (sortBy) => {
+    expect(() => parseCatalogQuery({ sortBy })).toThrow(
+      "sortBy must be one of: createdAt, title, price",
+    );
+  });
+
+  it.each(["unknown", "", "ASC", "ascending"])(
+    "rejects invalid sortOrder value %j",
+    (sortOrder) => {
+      expect(() => parseCatalogQuery({ sortOrder })).toThrow("sortOrder must be one of: asc, desc");
+    },
+  );
+
+  it.each(["q", "sort", "unknown"])("rejects unsupported parameter %j", (parameterName) => {
+    expect(() => parseCatalogQuery({ [parameterName]: "value" })).toThrow(
+      `Unsupported catalog query parameter: ${parameterName}`,
+    );
+  });
+
+  it.each([
+    ["page", ["1", "2"]],
+    ["query", ["typescript", "nestjs"]],
+    ["sortBy", { value: "title" }],
+    ["sortOrder", 1],
+  ] as const)("rejects non-string value for %s", (fieldName, value) => {
+    expect(() => parseCatalogQuery({ [fieldName]: value })).toThrow(
+      `${fieldName} must be a single string`,
     );
   });
 });

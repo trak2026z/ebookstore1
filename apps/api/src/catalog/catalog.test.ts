@@ -1,4 +1,4 @@
-import type { INestApplication } from "@nestjs/common";
+import { NotFoundException, type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -64,22 +64,36 @@ describe("Catalog API", () => {
     expect(getCategories).toHaveBeenCalledOnce();
   });
 
-  it("returns a paginated book list", async () => {
-    const getBooks = vi.fn().mockResolvedValue({
-      items: [],
-      pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
-    });
+  it("returns the public paginated book list contract", async () => {
+    const publicResponse = {
+      items: [
+        {
+          id: "7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71",
+          slug: "parable-of-the-sower",
+          title: "Parable of the Sower",
+          authors: [],
+          categories: [],
+          price: { amountMinor: 4590, currency: "PLN" },
+          format: "EPUB",
+          coverUrl: "/api/v1/books/7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71/cover",
+        },
+      ],
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        totalItems: 1,
+        totalPages: 1,
+      },
+    };
+    const getBooks = vi.fn().mockResolvedValue(publicResponse);
 
     app = await createApp({ getBooks, getBookBySlug: vi.fn() });
 
     const response = await request(app.getHttpServer()).get("/api/v1/books").expect(200);
 
-    expect(response.body.pagination).toEqual({
-      page: 1,
-      pageSize: 20,
-      total: 0,
-      totalPages: 0,
-    });
+    expect(response.body).toEqual(publicResponse);
+    expect(response.body.items[0]).not.toHaveProperty("coverKey");
+    expect(response.body.items[0]).not.toHaveProperty("status");
     expect(getBooks).toHaveBeenCalledWith({
       page: 1,
       pageSize: 20,
@@ -87,17 +101,95 @@ describe("Catalog API", () => {
     });
   });
 
+  it("returns public book details by slug", async () => {
+    const publicResponse = {
+      id: "7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71",
+      slug: "parable-of-the-sower",
+      title: "Parable of the Sower",
+      isbn: "9780000000002",
+      description: "A dystopian novel.",
+      authors: [
+        {
+          id: "author-1",
+          displayName: "Octavia E. Butler",
+          slug: "octavia-e-butler",
+        },
+      ],
+      categories: [
+        {
+          id: "category-1",
+          name: "Science Fiction",
+          slug: "science-fiction",
+        },
+      ],
+      price: {
+        amountMinor: 4590,
+        currency: "PLN",
+      },
+      format: "EPUB",
+      coverUrl: "/api/v1/books/7e6f1262-f9e8-4e7a-8ee7-fb5075a3fa71/cover",
+    };
+    const getBookBySlug = vi.fn().mockResolvedValue(publicResponse);
+
+    app = await createApp({
+      getBooks: vi.fn(),
+      getBookBySlug,
+    });
+
+    const response = await request(app.getHttpServer())
+      .get("/api/v1/books/parable-of-the-sower")
+      .expect(200);
+
+    expect(response.body).toEqual(publicResponse);
+    expect(response.body).not.toHaveProperty("coverKey");
+    expect(response.body).not.toHaveProperty("status");
+    expect(response.body).not.toHaveProperty("publishedAt");
+    expect(response.body).not.toHaveProperty("priceMinor");
+    expect(getBookBySlug).toHaveBeenCalledWith("parable-of-the-sower");
+  });
+
+  it("returns BOOK_NOT_FOUND for a non-public book slug", async () => {
+    const getBookBySlug = vi.fn().mockRejectedValue(
+      new NotFoundException({
+        code: "BOOK_NOT_FOUND",
+        message: "Book not found.",
+      }),
+    );
+
+    app = await createApp({
+      getBooks: vi.fn(),
+      getBookBySlug,
+    });
+
+    const response = await request(app.getHttpServer())
+      .get("/api/v1/books/missing-book")
+      .expect(404);
+
+    expect(response.body).toEqual({
+      code: "BOOK_NOT_FOUND",
+      message: "Book not found.",
+      requestId: expect.any(String),
+      details: [],
+    });
+    expect(getBookBySlug).toHaveBeenCalledWith("missing-book");
+  });
+
   it("normalizes all catalog query parameters before calling the service", async () => {
     const getBooks = vi.fn().mockResolvedValue({
       items: [],
-      pagination: { page: 2, pageSize: 25, total: 0, totalPages: 0 },
+      pagination: {
+        page: 2,
+        pageSize: 25,
+        totalItems: 0,
+        totalPages: 0,
+      },
     });
 
     app = await createApp({ getBooks, getBookBySlug: vi.fn() });
 
     await request(app.getHttpServer())
       .get(
-        "/api/v1/books?page=%202%20&pageSize=%2025%20&category=%20fiction%20&author=%20ursula-le-guin%20&q=%20earthsea%20&sort=%20price-desc%20",
+        "/api/v1/books?page=%202%20&pageSize=%2025%20&category=%20fiction%20&author=%20ursula-le-guin%20&query=%20earthsea%20&sortBy=%20price%20&sortOrder=%20desc%20",
       )
       .expect(200);
 
@@ -114,12 +206,17 @@ describe("Catalog API", () => {
   it("omits empty optional filters before calling the service", async () => {
     const getBooks = vi.fn().mockResolvedValue({
       items: [],
-      pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        totalItems: 0,
+        totalPages: 0,
+      },
     });
 
     app = await createApp({ getBooks, getBookBySlug: vi.fn() });
 
-    await request(app.getHttpServer()).get("/api/v1/books?q=%20%20&author=%20%20").expect(200);
+    await request(app.getHttpServer()).get("/api/v1/books?query=%20%20&author=%20%20").expect(200);
 
     expect(getBooks).toHaveBeenCalledWith({
       page: 1,
@@ -132,7 +229,12 @@ describe("Catalog API", () => {
     "/api/v1/books?page=0",
     "/api/v1/books?page=1.5",
     "/api/v1/books?pageSize=101",
-    "/api/v1/books?sort=unknown",
+    "/api/v1/books?sortBy=unknown",
+    "/api/v1/books?sortOrder=ascending",
+    "/api/v1/books?q=legacy",
+    "/api/v1/books?sort=price-desc",
+    "/api/v1/books?unknown=value",
+    "/api/v1/books?page=1&page=2",
   ])("rejects an invalid catalog query: %s", async (url) => {
     const getBooks = vi.fn();
 

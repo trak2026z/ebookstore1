@@ -19,25 +19,25 @@ const PUBLIC_BOOK_RELATIONS = {
     select: {
       author: {
         select: {
+          id: true,
           displayName: true,
           slug: true,
         },
       },
     },
     orderBy: [{ position: "asc" }, { authorId: "asc" }],
-    take: 1,
   },
   categories: {
     select: {
       category: {
         select: {
+          id: true,
           name: true,
           slug: true,
         },
       },
     },
     orderBy: [{ position: "asc" }, { categoryId: "asc" }],
-    take: 1,
   },
 } satisfies Prisma.BookInclude;
 
@@ -48,6 +48,11 @@ export type PublicBookRecord = Prisma.BookGetPayload<{
 export interface PublishedBooksPage {
   readonly items: readonly PublicBookRecord[];
   readonly total: number;
+}
+
+export interface PublishedBookCoverRecord {
+  readonly id: string;
+  readonly coverKey: string | null;
 }
 
 @Injectable()
@@ -84,6 +89,19 @@ export class BooksRepository {
         status: BookStatus.PUBLISHED,
       },
       include: PUBLIC_BOOK_RELATIONS,
+    });
+  }
+
+  findPublishedCoverById(bookId: string): Promise<PublishedBookCoverRecord | null> {
+    return this.database.prisma.book.findFirst({
+      where: {
+        id: bookId,
+        status: BookStatus.PUBLISHED,
+      },
+      select: {
+        id: true,
+        coverKey: true,
+      },
     });
   }
 }
@@ -150,6 +168,8 @@ function getBookOrderBy(sort: CatalogSort | undefined): Prisma.BookOrderByWithRe
       return [{ title: "asc" }, { id: "asc" }];
     case "title-desc":
       return [{ title: "desc" }, { id: "asc" }];
+    case "oldest":
+      return [{ createdAt: "asc" }, { id: "asc" }];
     case "newest":
     case undefined:
       return [{ createdAt: "desc" }, { id: "asc" }];
