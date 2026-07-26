@@ -22,6 +22,8 @@
     "build": "npm run build --workspace @ebookstore/contracts && npm run build --workspace @ebookstore/api",
     "test:smoke:catalog-integrity": "npm run db:migrate:deploy --workspace @ebookstore/api && RUN_DATABASE_SMOKE_TESTS=1 vitest run apps/api/src/catalog/catalog-integrity.smoke.test.ts",
     "test:smoke:catalog-public-list": "npm run db:migrate:deploy --workspace @ebookstore/api && RUN_DATABASE_SMOKE_TESTS=1 vitest run apps/api/src/catalog/catalog-public-list.smoke.test.ts",
+    "test:smoke:catalog-public-details-cover": "npm run db:migrate:deploy --workspace @ebookstore/api && RUN_DATABASE_SMOKE_TESTS=1 vitest run apps/api/src/catalog/catalog-public-details-cover.smoke.test.ts",
+    "test:smoke:catalog-public": "npm run db:migrate:deploy --workspace @ebookstore/api && RUN_DATABASE_SMOKE_TESTS=1 vitest run apps/api/src/catalog/catalog-public-list.smoke.test.ts apps/api/src/catalog/catalog-public-details-cover.smoke.test.ts",
     "test:smoke:catalog-seed": "npm run db:migrate:deploy --workspace @ebookstore/api && RUN_DATABASE_SMOKE_TESTS=1 vitest run apps/api/src/catalog/catalog-seed.smoke.test.ts"
   },
   "devDependencies": {
