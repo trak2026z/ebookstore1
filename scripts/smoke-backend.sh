@@ -269,6 +269,19 @@ log "Installing dependencies into the Compose volume"
 "${COMPOSE[@]}" run --rm workspace npm ci
 setup_pass "npm dependencies installed"
 
+log "Generating Prisma client"
+"${COMPOSE[@]}" run --rm workspace \
+  npm run db:generate --workspace @ebookstore/api
+
+if [[ \
+  ! -f apps/api/src/generated/prisma/enums.ts && \
+  ! -f apps/api/src/generated/prisma/enums.js \
+ ]]; then
+  fail "Prisma client generation did not create catalog enums"
+fi
+
+setup_pass "Prisma client generated"
+
 log "Applying database migrations"
 "${COMPOSE[@]}" run --rm workspace \
   npm run db:migrate:deploy --workspace @ebookstore/api
