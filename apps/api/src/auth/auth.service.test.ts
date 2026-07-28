@@ -46,6 +46,7 @@ function createSubject() {
 describe("AuthService", () => {
   it("normalizes the email, hashes the password and returns a safe response", async () => {
     const { subject, usersService, passwordService } = createSubject();
+
     usersService.findByEmail.mockResolvedValue(null);
     passwordService.hash.mockResolvedValue("argon2-hash");
     usersService.create.mockResolvedValue(user);
@@ -61,7 +62,7 @@ describe("AuthService", () => {
       email: user.email,
       displayName: user.displayName,
       role: "USER",
-      createdAt: user.createdAt,
+      createdAt: user.createdAt.toISOString(),
     });
 
     expect(usersService.findByEmail).toHaveBeenCalledWith("user@example.com");
@@ -75,6 +76,7 @@ describe("AuthService", () => {
 
   it("rejects an existing email before hashing", async () => {
     const { subject, usersService, passwordService } = createSubject();
+
     usersService.findByEmail.mockResolvedValue(user);
 
     await expect(
@@ -90,6 +92,7 @@ describe("AuthService", () => {
 
   it("maps a Prisma unique constraint race to HTTP 409", async () => {
     const { subject, usersService, passwordService } = createSubject();
+
     usersService.findByEmail.mockResolvedValue(null);
     passwordService.hash.mockResolvedValue("argon2-hash");
     usersService.create.mockRejectedValue({
@@ -106,6 +109,7 @@ describe("AuthService", () => {
 
   it("returns a JWT for valid credentials", async () => {
     const { subject, usersService, passwordService, jwtService } = createSubject();
+
     usersService.findByEmail.mockResolvedValue(user);
     passwordService.verify.mockResolvedValue(true);
     jwtService.signAsync.mockResolvedValue("signed.jwt.token");
@@ -124,7 +128,7 @@ describe("AuthService", () => {
         email: user.email,
         displayName: user.displayName,
         role: user.role,
-        createdAt: user.createdAt,
+        createdAt: user.createdAt.toISOString(),
       },
     });
 
@@ -139,6 +143,7 @@ describe("AuthService", () => {
 
   it("uses the same unauthorized response for an unknown email", async () => {
     const { subject, usersService, passwordService } = createSubject();
+
     usersService.findByEmail.mockResolvedValue(null);
 
     await expect(
@@ -157,6 +162,7 @@ describe("AuthService", () => {
 
   it("rejects an invalid password", async () => {
     const { subject, usersService, passwordService } = createSubject();
+
     usersService.findByEmail.mockResolvedValue(user);
     passwordService.verify.mockResolvedValue(false);
 
@@ -170,6 +176,7 @@ describe("AuthService", () => {
 
   it("rejects an inactive account before checking its password", async () => {
     const { subject, usersService, passwordService } = createSubject();
+
     usersService.findByEmail.mockResolvedValue({
       ...user,
       isActive: false,

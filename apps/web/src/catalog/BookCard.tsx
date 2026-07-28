@@ -27,11 +27,7 @@ export function BookCard({ book }: BookCardProps) {
 
   return (
     <article className="book-card" aria-labelledby={titleId}>
-      <BookCover
-        title={book.title}
-        coverUrl={book.coverUrl}
-        variant="card"
-      />
+      <BookCover title={book.title} coverUrl={book.coverUrl} variant="card" />
 
       <div className="book-card__heading">
         <h2 id={titleId}>

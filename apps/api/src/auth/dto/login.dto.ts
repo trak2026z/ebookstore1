@@ -1,7 +1,8 @@
+import type { LoginRequest } from "@ebookstore/contracts";
 import { Transform } from "class-transformer";
 import { IsEmail, IsString, MaxLength, MinLength } from "class-validator";
 
-export class LoginDto {
+export class LoginDto implements LoginRequest {
   @Transform(({ value }: { value: unknown }) =>
     typeof value === "string" ? value.trim().toLowerCase() : value,
   )

@@ -14,9 +14,21 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+function createReadOnlyClient(getImpl: JsonApiClient["get"]): JsonApiClient {
+  return {
+    get: getImpl,
+
+    async post<TResponse>(): Promise<TResponse> {
+      throw new Error("Unexpected POST request.");
+    },
+  };
+}
+
 describe("createApiClient", () => {
   it("returns parsed JSON from a successful response", async () => {
-    const responseBody = { items: [] };
+    const responseBody = {
+      items: [],
+    };
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(responseBody));
     const client = createApiClient({
       baseUrl: "http://api:3001/",
@@ -24,9 +36,60 @@ describe("createApiClient", () => {
     });
 
     await expect(client.get("/api/v1/books")).resolves.toEqual(responseBody);
+
     expect(fetchImpl).toHaveBeenCalledWith("http://api:3001/api/v1/books", {
       headers: {
         Accept: "application/json",
+      },
+    });
+  });
+
+  it("serializes a POST body once and sends JSON headers", async () => {
+    const responseBody = {
+      accessToken: "signed.jwt.token",
+    };
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(responseBody));
+    const toJSON = vi.fn(() => ({
+      email: "user@example.com",
+      password: "Correct-Horse-42",
+    }));
+    const body = { toJSON };
+    const client = createApiClient({
+      baseUrl: "http://api:3001/",
+      fetchImpl,
+    });
+
+    await expect(client.post("/api/v1/auth/login", body)).resolves.toEqual(responseBody);
+
+    expect(toJSON).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledWith("http://api:3001/api/v1/auth/login", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: '{"email":"user@example.com","password":"Correct-Horse-42"}',
+    });
+  });
+
+  it("adds a normalized Bearer token to a GET request", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        id: "user-id",
+      }),
+    );
+    const client = createApiClient({
+      fetchImpl,
+    });
+
+    await client.get("/api/v1/auth/me", {
+      accessToken: " valid-token ",
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith("/api/v1/auth/me", {
+      headers: {
+        Accept: "application/json",
+        Authorization: "Bearer valid-token",
       },
     });
   });
@@ -43,7 +106,9 @@ describe("createApiClient", () => {
         404,
       ),
     );
-    const client = createApiClient({ fetchImpl });
+    const client = createApiClient({
+      fetchImpl,
+    });
 
     const error = await client.get("/api/v1/books/missing").catch((value: unknown) => value);
 
@@ -57,11 +122,54 @@ describe("createApiClient", () => {
     });
   });
 
+  it("preserves backend validation details for POST errors", async () => {
+    const details = [
+      {
+        field: "email",
+        message: "email must be an email",
+      },
+    ];
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse(
+        {
+          code: "VALIDATION_ERROR",
+          message: "Validation failed.",
+          requestId: "request-400",
+          details,
+        },
+        400,
+      ),
+    );
+    const client = createApiClient({
+      fetchImpl,
+    });
+
+    const error = await client
+      .post("/api/v1/auth/login", {
+        email: "invalid",
+        password: "secret",
+      })
+      .catch((value: unknown) => value);
+
+    expect(error).toBeInstanceOf(ApiClientError);
+    expect(error).toMatchObject({
+      status: 400,
+      code: "VALIDATION_ERROR",
+      message: "Validation failed.",
+      requestId: "request-400",
+      details,
+    });
+  });
+
   it("rejects a successful response containing invalid JSON", async () => {
-    const fetchImpl = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(new Response("<html>", { status: 200 }));
-    const client = createApiClient({ fetchImpl });
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response("<html>", {
+        status: 200,
+      }),
+    );
+    const client = createApiClient({
+      fetchImpl,
+    });
 
     await expect(client.get("/api/v1/books")).rejects.toMatchObject({
       status: 200,
@@ -83,13 +191,11 @@ describe("createCatalogApi", () => {
       },
     };
     const requestedPaths: string[] = [];
-    const client: JsonApiClient = {
-      async get<T>(path: string): Promise<T> {
-        requestedPaths.push(path);
+    const client = createReadOnlyClient(async <T>(path: string): Promise<T> => {
+      requestedPaths.push(path);
 
-        return response as T;
-      },
-    };
+      return response as T;
+    });
     const api = createCatalogApi(client);
 
     await api.getBooks({
@@ -109,13 +215,11 @@ describe("createCatalogApi", () => {
 
   it("targets the details and dictionary endpoints", async () => {
     const requestedPaths: string[] = [];
-    const client: JsonApiClient = {
-      async get<T>(path: string): Promise<T> {
-        requestedPaths.push(path);
+    const client = createReadOnlyClient(async <T>(path: string): Promise<T> => {
+      requestedPaths.push(path);
 
-        return {} as T;
-      },
-    };
+      return {} as T;
+    });
     const api = createCatalogApi(client);
 
     await api.getBook("typescript / praktyka");

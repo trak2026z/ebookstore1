@@ -1,7 +1,8 @@
+import type { RegisterRequest } from "@ebookstore/contracts";
 import { Transform } from "class-transformer";
 import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 
-export class RegisterDto {
+export class RegisterDto implements RegisterRequest {
   @Transform(({ value }: { value: unknown }) =>
     typeof value === "string" ? value.trim().toLowerCase() : value,
   )

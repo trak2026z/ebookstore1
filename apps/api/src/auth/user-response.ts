@@ -1,15 +1,16 @@
-export interface UserResponse {
-  id: string;
-  email: string;
-  displayName: string | null;
-  role: "USER" | "ADMIN";
-  createdAt: Date;
-}
+import type { AuthUserResponse, AuthUserRole } from "@ebookstore/contracts";
 
-export interface UserRecord extends UserResponse {
-  passwordHash: string;
-  isActive: boolean;
-  updatedAt: Date;
+export type UserResponse = AuthUserResponse;
+
+export interface UserRecord {
+  readonly id: string;
+  readonly email: string;
+  readonly displayName: string | null;
+  readonly role: AuthUserRole;
+  readonly createdAt: Date;
+  readonly passwordHash: string;
+  readonly isActive: boolean;
+  readonly updatedAt: Date;
 }
 
 export function toUserResponse(user: UserRecord): UserResponse {
@@ -18,6 +19,6 @@ export function toUserResponse(user: UserRecord): UserResponse {
     email: user.email,
     displayName: user.displayName,
     role: user.role,
-    createdAt: user.createdAt,
+    createdAt: user.createdAt.toISOString(),
   };
 }

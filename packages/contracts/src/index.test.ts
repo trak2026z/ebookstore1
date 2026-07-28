@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import type { HealthResponse, PublicBookDetailsResponse, PublicBookListResponse } from "./index.js";
+import type {
+  AuthUserResponse,
+  HealthResponse,
+  LoginRequest,
+  LoginResponse,
+  PublicBookDetailsResponse,
+  PublicBookListResponse,
+  RegisterRequest,
+} from "./index.js";
 
 describe("HealthResponse", () => {
   it("accepts the supported health status", () => {
@@ -104,5 +112,35 @@ describe("public catalog contracts", () => {
     expect(response.coverUrl).toBeNull();
     expect(response).not.toHaveProperty("coverKey");
     expect(hasCoverKey).toBe(false);
+  });
+});
+
+describe("authentication contracts", () => {
+  it("represents requests and an ISO-serialized login response", () => {
+    const loginRequest: LoginRequest = {
+      email: "user@example.com",
+      password: "Correct-Horse-42",
+    };
+    const registerRequest: RegisterRequest = {
+      ...loginRequest,
+      displayName: "Tomasz",
+    };
+    const user: AuthUserResponse = {
+      id: "165461e5-e713-47c5-9ae4-3b84f81a8430",
+      email: loginRequest.email,
+      displayName: registerRequest.displayName ?? null,
+      role: "USER",
+      createdAt: "2026-07-22T10:00:00.000Z",
+    };
+    const response: LoginResponse = {
+      accessToken: "signed.jwt.token",
+      tokenType: "Bearer",
+      expiresIn: 900,
+      user,
+    };
+
+    expect(response.user.createdAt).toBe("2026-07-22T10:00:00.000Z");
+    expect(response.tokenType).toBe("Bearer");
+    expect(registerRequest.displayName).toBe("Tomasz");
   });
 });
