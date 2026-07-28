@@ -39,8 +39,7 @@ function createErrorState(error: unknown): BookDetailsState {
 
   return {
     status: "error",
-    message:
-      error instanceof ApiClientError ? error.message : DEFAULT_ERROR_MESSAGE,
+    message: error instanceof ApiClientError ? error.message : DEFAULT_ERROR_MESSAGE,
   };
 }
 
@@ -98,9 +97,7 @@ export function BookDetails({ slug, catalog }: BookDetailsProps) {
       {state.status === "not-found" && (
         <div className="book-details__message" role="alert">
           <h1>Nie znaleziono książki</h1>
-          <p>
-            Książka mogła zostać usunięta albo adres jest nieprawidłowy.
-          </p>
+          <p>Książka mogła zostać usunięta albo adres jest nieprawidłowy.</p>
         </div>
       )}
 
@@ -121,11 +118,7 @@ export function BookDetails({ slug, catalog }: BookDetailsProps) {
 
       {state.status === "success" && (
         <article className="book-details__card" aria-labelledby={titleId}>
-          <BookCover
-            title={state.book.title}
-            coverUrl={state.book.coverUrl}
-            variant="details"
-          />
+          <BookCover title={state.book.title} coverUrl={state.book.coverUrl} variant="details" />
 
           <div className="book-details__content">
             <div className="book-details__heading">
@@ -137,9 +130,7 @@ export function BookDetails({ slug, catalog }: BookDetailsProps) {
               <span className="book-card__format">{state.book.format}</span>
             </div>
 
-            <p className="book-details__description">
-              {state.book.description}
-            </p>
+            <p className="book-details__description">{state.book.description}</p>
 
             <dl className="book-details__metadata">
               <div>

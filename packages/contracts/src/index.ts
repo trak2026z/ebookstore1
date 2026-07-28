@@ -112,7 +112,35 @@ export interface BookListResponse {
   };
 }
 
-export type AdminUserRole = "USER" | "ADMIN";
+export type AuthUserRole = "USER" | "ADMIN";
+
+export interface AuthUserResponse {
+  readonly id: string;
+  readonly email: string;
+  readonly displayName: string | null;
+  readonly role: AuthUserRole;
+  readonly createdAt: string;
+}
+
+export interface LoginRequest {
+  readonly email: string;
+  readonly password: string;
+}
+
+export interface RegisterRequest {
+  readonly email: string;
+  readonly password: string;
+  readonly displayName?: string;
+}
+
+export interface LoginResponse {
+  readonly accessToken: string;
+  readonly tokenType: "Bearer";
+  readonly expiresIn: number;
+  readonly user: AuthUserResponse;
+}
+
+export type AdminUserRole = AuthUserRole;
 
 export interface AdminUserListItem {
   readonly id: string;

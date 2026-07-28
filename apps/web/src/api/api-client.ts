@@ -1,7 +1,17 @@
 import type { ApiErrorResponse } from "@ebookstore/contracts";
 
+export interface ApiRequestOptions {
+  readonly accessToken?: string;
+}
+
 export interface JsonApiClient {
-  get<T>(path: string): Promise<T>;
+  get<T>(path: string, options?: ApiRequestOptions): Promise<T>;
+
+  post<TResponse, TBody>(
+    path: string,
+    body: TBody,
+    options?: ApiRequestOptions,
+  ): Promise<TResponse>;
 }
 
 export interface ApiClientOptions {
@@ -43,6 +53,27 @@ function createRequestUrl(baseUrl: string, path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
   return `${baseUrl}${normalizedPath}`;
+}
+
+function createRequestHeaders(
+  options: ApiRequestOptions,
+  includeContentType: boolean,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+
+  if (includeContentType) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  const accessToken = options.accessToken?.trim();
+
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
+
+  return headers;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -89,54 +120,80 @@ async function parseJsonResponse(response: Response): Promise<unknown> {
   }
 }
 
+function serializeJsonBody(body: unknown): string {
+  const serializedBody = JSON.stringify(body);
+
+  if (serializedBody === undefined) {
+    throw new TypeError("Request body must be JSON-serializable.");
+  }
+
+  return serializedBody;
+}
+
 export function createApiClient(options: ApiClientOptions = {}): JsonApiClient {
   const baseUrl = normalizeBaseUrl(options.baseUrl ?? "");
   const fetchImpl = options.fetchImpl ?? fetch;
 
-  return {
-    async get<T>(path: string): Promise<T> {
-      let response: Response;
+  async function request<T>(path: string, requestInit: RequestInit): Promise<T> {
+    let response: Response;
 
-      try {
-        response = await fetchImpl(createRequestUrl(baseUrl, path), {
-          headers: {
-            Accept: "application/json",
-          },
-        });
-      } catch (cause) {
-        throw new ApiClientError({
-          status: null,
-          code: "NETWORK_ERROR",
-          message: "Nie udało się połączyć z API.",
-          requestId: "unknown",
-          details: [],
-          cause,
-        });
-      }
+    try {
+      response = await fetchImpl(createRequestUrl(baseUrl, path), requestInit);
+    } catch (cause) {
+      throw new ApiClientError({
+        status: null,
+        code: "NETWORK_ERROR",
+        message: "Nie udało się połączyć z API.",
+        requestId: "unknown",
+        details: [],
+        cause,
+      });
+    }
 
-      const payload = await parseJsonResponse(response);
+    const payload = await parseJsonResponse(response);
 
-      if (!response.ok) {
-        if (isApiErrorResponse(payload)) {
-          throw new ApiClientError({
-            status: response.status,
-            code: payload.code,
-            message: payload.message,
-            requestId: payload.requestId,
-            details: payload.details,
-          });
-        }
-
+    if (!response.ok) {
+      if (isApiErrorResponse(payload)) {
         throw new ApiClientError({
           status: response.status,
-          code: "HTTP_ERROR",
-          message: `Żądanie API zakończyło się statusem ${response.status}.`,
-          requestId: response.headers.get("x-request-id") ?? "unknown",
-          details: [],
+          code: payload.code,
+          message: payload.message,
+          requestId: payload.requestId,
+          details: payload.details,
         });
       }
 
-      return payload as T;
+      throw new ApiClientError({
+        status: response.status,
+        code: "HTTP_ERROR",
+        message: `Żądanie API zakończyło się statusem ${response.status}.`,
+        requestId: response.headers.get("x-request-id") ?? "unknown",
+        details: [],
+      });
+    }
+
+    return payload as T;
+  }
+
+  return {
+    get<T>(path: string, requestOptions: ApiRequestOptions = {}): Promise<T> {
+      return request<T>(path, {
+        headers: createRequestHeaders(requestOptions, false),
+      });
+    },
+
+    post<TResponse, TBody>(
+      path: string,
+      body: TBody,
+      requestOptions: ApiRequestOptions = {},
+    ): Promise<TResponse> {
+      const serializedBody = serializeJsonBody(body);
+
+      return request<TResponse>(path, {
+        method: "POST",
+        headers: createRequestHeaders(requestOptions, true),
+        body: serializedBody,
+      });
     },
   };
 }

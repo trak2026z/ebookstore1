@@ -14,16 +14,11 @@ function normalizeCoverUrl(coverUrl: string | null): string | null {
   return normalizedCoverUrl ? normalizedCoverUrl : null;
 }
 
-export function BookCover({
-  title,
-  coverUrl,
-  variant,
-}: BookCoverProps) {
+export function BookCover({ title, coverUrl, variant }: BookCoverProps) {
   const normalizedCoverUrl = normalizeCoverUrl(coverUrl);
   const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null);
 
-  const shouldRenderImage =
-    normalizedCoverUrl !== null && failedCoverUrl !== normalizedCoverUrl;
+  const shouldRenderImage = normalizedCoverUrl !== null && failedCoverUrl !== normalizedCoverUrl;
 
   const className = `book-cover book-cover--${variant}`;
 

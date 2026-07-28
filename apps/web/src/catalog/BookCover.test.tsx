@@ -1,18 +1,8 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
-import {
-  afterEach,
-  describe,
-  expect,
-  it,
-} from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { BookCover } from "./BookCover";
 
@@ -23,13 +13,7 @@ const coverUrl = "/api/v1/books/book-1/cover";
 
 describe("BookCover", () => {
   it("renders a lazy card image with an accessible description", () => {
-    render(
-      <BookCover
-        title={title}
-        coverUrl={coverUrl}
-        variant="card"
-      />,
-    );
+    render(<BookCover title={title} coverUrl={coverUrl} variant="card" />);
 
     const image = screen.getByRole("img", {
       name: `Okładka książki ${title}`,
@@ -41,13 +25,7 @@ describe("BookCover", () => {
   });
 
   it("loads the main details image eagerly", () => {
-    render(
-      <BookCover
-        title={title}
-        coverUrl={coverUrl}
-        variant="details"
-      />,
-    );
+    render(<BookCover title={title} coverUrl={coverUrl} variant="details" />);
 
     expect(
       screen.getByRole("img", {
@@ -57,13 +35,7 @@ describe("BookCover", () => {
   });
 
   it("renders a placeholder instead of an image for a missing URL", () => {
-    render(
-      <BookCover
-        title={title}
-        coverUrl={null}
-        variant="card"
-      />,
-    );
+    render(<BookCover title={title} coverUrl={null} variant="card" />);
 
     expect(
       screen.getByRole("img", {
@@ -75,13 +47,7 @@ describe("BookCover", () => {
   });
 
   it("replaces a failed image and accepts a new URL", () => {
-    const { rerender } = render(
-      <BookCover
-        title={title}
-        coverUrl={coverUrl}
-        variant="card"
-      />,
-    );
+    const { rerender } = render(<BookCover title={title} coverUrl={coverUrl} variant="card" />);
 
     fireEvent.error(
       screen.getByRole("img", {
@@ -97,13 +63,7 @@ describe("BookCover", () => {
 
     const nextCoverUrl = "/api/v1/books/book-2/cover";
 
-    rerender(
-      <BookCover
-        title={title}
-        coverUrl={nextCoverUrl}
-        variant="card"
-      />,
-    );
+    rerender(<BookCover title={title} coverUrl={nextCoverUrl} variant="card" />);
 
     expect(
       screen.getByRole("img", {
