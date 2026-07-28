@@ -1,6 +1,7 @@
 import type { PublicBookListItem } from "@ebookstore/contracts";
 import { useId } from "react";
 
+import { createBookPath } from "../navigation/browser-navigation";
 import { formatPrice } from "./format-price";
 
 export interface BookCardProps {
@@ -26,7 +27,15 @@ export function BookCard({ book }: BookCardProps) {
   return (
     <article className="book-card" aria-labelledby={titleId}>
       <div className="book-card__heading">
-        <h2 id={titleId}>{book.title}</h2>
+        <h2 id={titleId}>
+          <a
+            className="book-card__title-link"
+            href={createBookPath(book.slug)}
+            data-app-link="true"
+          >
+            {book.title}
+          </a>
+        </h2>
         <span className="book-card__format">{book.format}</span>
       </div>
 
