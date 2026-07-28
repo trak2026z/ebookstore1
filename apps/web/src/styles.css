@@ -112,6 +112,68 @@ h1 {
   color: #526079;
 }
 
+.catalog-filters {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid #dfe5ef;
+  border-radius: 0.85rem;
+  background: white;
+}
+
+.catalog-filters__grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.catalog-filters label {
+  display: grid;
+  gap: 0.4rem;
+  color: #526079;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.catalog-filters input,
+.catalog-filters select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding-inline: 0.75rem;
+  border: 1px solid #c9d4e5;
+  border-radius: 0.65rem;
+  background: white;
+  color: #172033;
+  font: inherit;
+}
+
+.catalog-filters input:focus,
+.catalog-filters select:focus {
+  border-color: #315fd4;
+  outline: 3px solid #dbe5ff;
+}
+
+.catalog-filters select:disabled {
+  background: #e8edf5;
+  color: #66738a;
+}
+
+.catalog-filters__actions {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  gap: 0.75rem;
+}
+
+.catalog-filters__note,
+.catalog-filters__warning {
+  margin: 0.75rem 0 0;
+  color: #526079;
+  font-size: 0.9rem;
+}
+
+.catalog-filters__warning {
+  color: #8a4a19;
+}
+
 .catalog-status,
 .catalog-error {
   padding: 1.25rem;
@@ -137,7 +199,8 @@ h1 {
 }
 
 .pagination button,
-.catalog-error button {
+.catalog-error button,
+.catalog-filters__actions button {
   min-height: 2.75rem;
   padding-inline: 1rem;
   border: 1px solid #315fd4;
@@ -147,6 +210,12 @@ h1 {
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+}
+
+.catalog-filters__actions button[type="button"] {
+  border-color: #aebbd0;
+  background: white;
+  color: #315fd4;
 }
 
 .pagination button:disabled {
@@ -235,11 +304,21 @@ h1 {
 }
 
 @media (min-width: 48rem) {
+  .catalog-filters__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .catalog-section__header > p {
     text-align: right;
   }
 
   .book-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 64rem) {
+  .catalog-filters__grid {
+    grid-template-columns: 2fr repeat(4, minmax(0, 1fr));
   }
 }
