@@ -78,24 +78,87 @@ h1 {
   line-height: 1.7;
 }
 
-.foundation-list {
-  display: grid;
-  max-width: 50rem;
-  padding: 0;
-  gap: 0.75rem;
-  list-style: none;
+.site-footer {
+  padding-block: 1.5rem;
+  color: #66738a;
 }
 
-.foundation-list li {
-  padding: 1rem;
+.catalog-section {
+  padding-block: 1rem clamp(3rem, 8vw, 6rem);
+}
+
+.catalog-section__header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.catalog-section__header h2,
+.catalog-section__header p,
+.catalog-status,
+.catalog-error p {
+  margin: 0;
+}
+
+.catalog-section__header h2 {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.catalog-section__header > p {
+  max-width: 24rem;
+  color: #526079;
+}
+
+.catalog-status,
+.catalog-error {
+  padding: 1.25rem;
   border: 1px solid #dfe5ef;
   border-radius: 0.85rem;
   background: white;
 }
 
-.site-footer {
-  padding-block: 1.5rem;
+.catalog-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-color: #d9a7a7;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1.5rem;
+  gap: 1rem;
+}
+
+.pagination button,
+.catalog-error button {
+  min-height: 2.75rem;
+  padding-inline: 1rem;
+  border: 1px solid #315fd4;
+  border-radius: 0.65rem;
+  background: #315fd4;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pagination button:disabled {
+  border-color: #c9d4e5;
+  background: #e8edf5;
   color: #66738a;
+  cursor: not-allowed;
+}
+
+.pagination__summary {
+  min-width: 8rem;
+  text-align: center;
 }
 
 .book-list {
@@ -172,8 +235,8 @@ h1 {
 }
 
 @media (min-width: 48rem) {
-  .foundation-list {
-    grid-template-columns: repeat(3, 1fr);
+  .catalog-section__header > p {
+    text-align: right;
   }
 
   .book-list {
