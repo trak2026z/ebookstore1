@@ -1,12 +1,27 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import type { PublicBookDetailsResponse } from "@ebookstore/contracts";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import type {
+  PublicBookDetailsResponse,
+} from "@ebookstore/contracts";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
+import {
+  afterEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 
 import { ApiClientError } from "../api/api-client";
-import { BookDetails, type BookDetailsApi } from "./BookDetails";
+import {
+  BookDetails,
+  type BookDetailsApi,
+} from "./BookDetails";
 
 afterEach(cleanup);
 
@@ -33,9 +48,10 @@ const book: PublicBookDetailsResponse = {
     currency: "PLN",
   },
   format: "EPUB",
-  coverUrl: null,
+  coverUrl: "/api/v1/books/book-1/cover",
   isbn: "978-83-00000-00-1",
-  description: "Praktyczny przewodnik po bezpiecznym TypeScript.",
+  description:
+    "Praktyczny przewodnik po bezpiecznym TypeScript.",
 };
 
 describe("BookDetails", () => {
@@ -49,9 +65,16 @@ describe("BookDetails", () => {
       },
     };
 
-    render(<BookDetails slug={book.slug} catalog={catalog} />);
+    render(
+      <BookDetails
+        slug={book.slug}
+        catalog={catalog}
+      />,
+    );
 
-    expect(screen.getByRole("status")).toHaveTextContent("Ładowanie szczegółów książki…");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Ładowanie szczegółów książki…",
+    );
 
     expect(
       await screen.findByRole("heading", {
@@ -60,11 +83,26 @@ describe("BookDetails", () => {
       }),
     ).toBeInTheDocument();
 
-    expect(screen.getByText(book.description)).toBeInTheDocument();
-    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
-    expect(screen.getByText("Programowanie")).toBeInTheDocument();
-    expect(screen.getByText(book.isbn)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Cena: 49,99\s*zł$/)).toBeInTheDocument();
+    expect(
+      screen.getByText(book.description),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Ada Lovelace"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Programowanie"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(book.isbn),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", {
+        name: `Okładka książki ${book.title}`,
+      }),
+    ).toHaveAttribute("loading", "eager");
+    expect(
+      screen.getByLabelText(/^Cena: 49,99\s*zł$/),
+    ).toBeInTheDocument();
     expect(requestedSlugs).toEqual([book.slug]);
   });
 
@@ -81,7 +119,12 @@ describe("BookDetails", () => {
       },
     };
 
-    render(<BookDetails slug="brak-ksiazki" catalog={catalog} />);
+    render(
+      <BookDetails
+        slug="brak-ksiazki"
+        catalog={catalog}
+      />,
+    );
 
     expect(
       await screen.findByRole("heading", {
@@ -106,7 +149,8 @@ describe("BookDetails", () => {
           throw new ApiClientError({
             status: 503,
             code: "SERVICE_UNAVAILABLE",
-            message: "Książka jest chwilowo niedostępna.",
+            message:
+              "Książka jest chwilowo niedostępna.",
             requestId: "request-503",
             details: [],
           });
@@ -116,9 +160,16 @@ describe("BookDetails", () => {
       },
     };
 
-    render(<BookDetails slug={book.slug} catalog={catalog} />);
+    render(
+      <BookDetails
+        slug={book.slug}
+        catalog={catalog}
+      />,
+    );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    expect(
+      await screen.findByRole("alert"),
+    ).toHaveTextContent(
       "Książka jest chwilowo niedostępna.",
     );
 
@@ -134,6 +185,9 @@ describe("BookDetails", () => {
       }),
     ).toBeInTheDocument();
 
-    expect(requestedSlugs).toEqual([book.slug, book.slug]);
+    expect(requestedSlugs).toEqual([
+      book.slug,
+      book.slug,
+    ]);
   });
 });

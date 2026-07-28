@@ -238,6 +238,35 @@ h1 {
   list-style: none;
 }
 
+.book-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border: 1px solid #dfe5ef;
+  border-radius: 0.75rem;
+  background: #eef2f8;
+  object-fit: cover;
+}
+
+.book-cover--card {
+  max-height: 22rem;
+}
+
+.book-cover--details {
+  width: min(100%, 20rem);
+  justify-self: center;
+}
+
+.book-cover--placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 12rem;
+  padding: 1rem;
+  color: #66738a;
+  font-weight: 700;
+  text-align: center;
+}
+
 .book-card {
   display: grid;
   min-height: 100%;
@@ -368,6 +397,13 @@ h1 {
 
 .book-details__card {
   display: grid;
+  align-items: start;
+  gap: 1.5rem;
+}
+
+.book-details__content {
+  display: grid;
+  min-width: 0;
   gap: 1.5rem;
 }
 
@@ -415,8 +451,14 @@ h1 {
 }
 
 @media (min-width: 48rem) {
+  .book-details__card {
+    grid-template-columns:
+      minmax(12rem, 18rem) minmax(0, 1fr);
+  }
+
   .book-details__metadata {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 
   .catalog-filters__grid {
