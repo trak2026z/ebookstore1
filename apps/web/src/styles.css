@@ -303,7 +303,122 @@ h1 {
   color: #526079;
 }
 
+.book-card__title-link {
+  color: inherit;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+}
+
+.book-card__title-link:hover {
+  color: #315fd4;
+}
+
+.book-details,
+.app-not-found {
+  padding-block: clamp(2rem, 6vw, 5rem);
+}
+
+.book-details__back {
+  display: inline-flex;
+  margin-bottom: 1.5rem;
+  color: #315fd4;
+  font-weight: 700;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+}
+
+.book-details__message,
+.book-details__card,
+.app-not-found {
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid #dfe5ef;
+  border-radius: 0.85rem;
+  background: white;
+}
+
+.book-details__message h1,
+.book-details__message p,
+.app-not-found h1,
+.app-not-found p {
+  margin-top: 0;
+}
+
+.book-details__message h1,
+.app-not-found h1,
+.book-details__card h1 {
+  font-size: clamp(2rem, 7vw, 4rem);
+  line-height: 1.05;
+}
+
+.book-details__message button,
+.app-not-found a {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  padding-inline: 1rem;
+  border: 1px solid #315fd4;
+  border-radius: 0.65rem;
+  background: #315fd4;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.book-details__card {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.book-details__heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.book-details__heading h1,
+.book-details__heading .eyebrow,
+.book-details__description,
+.book-details__metadata,
+.book-details__price {
+  margin: 0;
+}
+
+.book-details__description {
+  max-width: 52rem;
+  color: #526079;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  white-space: pre-line;
+}
+
+.book-details__metadata {
+  display: grid;
+  gap: 1rem;
+}
+
+.book-details__metadata dt {
+  color: #66738a;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.book-details__metadata dd {
+  margin: 0.25rem 0 0;
+}
+
+.book-details__price {
+  font-size: 1.5rem;
+  font-weight: 750;
+}
+
 @media (min-width: 48rem) {
+  .book-details__metadata {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .catalog-filters__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
