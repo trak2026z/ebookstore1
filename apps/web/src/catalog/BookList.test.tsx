@@ -28,7 +28,7 @@ const book = {
   ],
   price: { amountMinor: 4_999, currency: "PLN" },
   format: "EPUB",
-  coverUrl: null,
+  coverUrl: "/api/v1/books/book-1/cover",
 } satisfies PublicBookListItem;
 
 describe("BookList", () => {
@@ -43,6 +43,11 @@ describe("BookList", () => {
     expect(within(card).getByText("Ada Lovelace, Grace Hopper")).toBeInTheDocument();
     expect(within(card).getByText("Programowanie, Historia technologii")).toBeInTheDocument();
     expect(within(card).getByText("EPUB")).toBeInTheDocument();
+    expect(
+      within(card).getByRole("img", {
+        name: `Okładka książki ${book.title}`,
+      }),
+    ).toHaveAttribute("loading", "lazy");
     expect(within(card).getByLabelText(/^Cena: 49,99\s*zł$/)).toBeInTheDocument();
   });
 

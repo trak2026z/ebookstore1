@@ -2,6 +2,7 @@ import type { PublicBookDetailsResponse } from "@ebookstore/contracts";
 import { useEffect, useId, useState } from "react";
 
 import { ApiClientError } from "../api/api-client";
+import { BookCover } from "./BookCover";
 import { formatPrice } from "./format-price";
 
 const DEFAULT_ERROR_MESSAGE = "Nie udało się pobrać książki. Spróbuj ponownie.";
@@ -38,7 +39,8 @@ function createErrorState(error: unknown): BookDetailsState {
 
   return {
     status: "error",
-    message: error instanceof ApiClientError ? error.message : DEFAULT_ERROR_MESSAGE,
+    message:
+      error instanceof ApiClientError ? error.message : DEFAULT_ERROR_MESSAGE,
   };
 }
 
@@ -96,7 +98,9 @@ export function BookDetails({ slug, catalog }: BookDetailsProps) {
       {state.status === "not-found" && (
         <div className="book-details__message" role="alert">
           <h1>Nie znaleziono książki</h1>
-          <p>Książka mogła zostać usunięta albo adres jest nieprawidłowy.</p>
+          <p>
+            Książka mogła zostać usunięta albo adres jest nieprawidłowy.
+          </p>
         </div>
       )}
 
@@ -117,52 +121,65 @@ export function BookDetails({ slug, catalog }: BookDetailsProps) {
 
       {state.status === "success" && (
         <article className="book-details__card" aria-labelledby={titleId}>
-          <div className="book-details__heading">
-            <div>
-              <p className="eyebrow">Szczegóły e-booka</p>
-              <h1 id={titleId}>{state.book.title}</h1>
+          <BookCover
+            title={state.book.title}
+            coverUrl={state.book.coverUrl}
+            variant="details"
+          />
+
+          <div className="book-details__content">
+            <div className="book-details__heading">
+              <div>
+                <p className="eyebrow">Szczegóły e-booka</p>
+                <h1 id={titleId}>{state.book.title}</h1>
+              </div>
+
+              <span className="book-card__format">{state.book.format}</span>
             </div>
 
-            <span className="book-card__format">{state.book.format}</span>
+            <p className="book-details__description">
+              {state.book.description}
+            </p>
+
+            <dl className="book-details__metadata">
+              <div>
+                <dt>Autorzy</dt>
+                <dd>
+                  {joinNames(
+                    state.book.authors.map((author) => author.displayName),
+                    "Autor nieznany",
+                  )}
+                </dd>
+              </div>
+
+              <div>
+                <dt>Kategorie</dt>
+                <dd>
+                  {joinNames(
+                    state.book.categories.map((category) => category.name),
+                    "Bez kategorii",
+                  )}
+                </dd>
+              </div>
+
+              <div>
+                <dt>ISBN</dt>
+                <dd>{state.book.isbn}</dd>
+              </div>
+
+              <div>
+                <dt>Format</dt>
+                <dd>{state.book.format}</dd>
+              </div>
+            </dl>
+
+            <p
+              className="book-details__price"
+              aria-label={`Cena: ${formatPrice(state.book.price)}`}
+            >
+              {formatPrice(state.book.price)}
+            </p>
           </div>
-
-          <p className="book-details__description">{state.book.description}</p>
-
-          <dl className="book-details__metadata">
-            <div>
-              <dt>Autorzy</dt>
-              <dd>
-                {joinNames(
-                  state.book.authors.map((author) => author.displayName),
-                  "Autor nieznany",
-                )}
-              </dd>
-            </div>
-
-            <div>
-              <dt>Kategorie</dt>
-              <dd>
-                {joinNames(
-                  state.book.categories.map((category) => category.name),
-                  "Bez kategorii",
-                )}
-              </dd>
-            </div>
-
-            <div>
-              <dt>ISBN</dt>
-              <dd>{state.book.isbn}</dd>
-            </div>
-
-            <div>
-              <dt>Format</dt>
-              <dd>{state.book.format}</dd>
-            </div>
-          </dl>
-
-          <p className="book-details__price" aria-label={`Cena: ${formatPrice(state.book.price)}`}>
-            {formatPrice(state.book.price)}
-          </p>
         </article>
       )}
     </section>
