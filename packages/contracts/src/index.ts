@@ -9,6 +9,13 @@ export interface ReadinessResponse {
   };
 }
 
+export interface ApiErrorResponse {
+  readonly code: string;
+  readonly message: string;
+  readonly requestId: string;
+  readonly details: readonly unknown[];
+}
+
 export interface BookReference {
   readonly name: string;
   readonly slug: string;
