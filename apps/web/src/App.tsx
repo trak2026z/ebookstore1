@@ -1,10 +1,11 @@
-const foundationItems = [
-  "Strict TypeScript",
-  "Testowalny interfejs",
-  "Gotowość na klienta API",
-] as const;
+import { catalogApi } from "./api/catalog-api";
+import { CatalogPage, type CatalogBooksApi } from "./catalog/CatalogPage";
 
-export default function App() {
+export interface AppProps {
+  readonly catalog?: CatalogBooksApi;
+}
+
+export default function App({ catalog = catalogApi }: AppProps) {
   return (
     <>
       <a className="skip-link" href="#main-content">
@@ -15,7 +16,7 @@ export default function App() {
           <a className="brand" href="/" aria-label="Ebookstore — strona główna">
             Ebookstore
           </a>
-          <span className="stage-badge">Sprint 13.1.1</span>
+          <span className="stage-badge">Sprint 13.2.2</span>
         </div>
       </header>
       <main id="main-content">
@@ -23,18 +24,14 @@ export default function App() {
           <p className="eyebrow">Publiczny katalog e-booków</p>
           <h1 id="page-title">Ebookstore</h1>
           <p className="hero__summary">
-            Fundament aplikacji webowej jest gotowy. Integracja z API powstanie w następnym
-            przyroście.
+            Przeglądaj dostępne książki i przechodź między stronami katalogu.
           </p>
-          <ul className="foundation-list" aria-label="Zakres fundamentu">
-            {foundationItems.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
         </section>
+
+        <CatalogPage catalog={catalog} />
       </main>
       <footer className="site-footer">
-        <div className="shell">Ebookstore — wersja deweloperska</div>
+        <div className="shell">Ebookstore — wersja developerska</div>
       </footer>
     </>
   );
