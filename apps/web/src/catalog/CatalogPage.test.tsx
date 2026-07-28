@@ -64,7 +64,7 @@ describe("CatalogPage", () => {
 
     render(<CatalogPage catalog={catalog} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent("Ładowanie katalogu…");
+    expect(screen.getByText("Ładowanie katalogu…")).toHaveAttribute("role", "status");
     expect(requests).toEqual([{ page: 1, pageSize: 12 }]);
   });
 
@@ -119,6 +119,133 @@ describe("CatalogPage", () => {
         { page: 1, pageSize: 12 },
       ]);
     });
+  });
+
+  it("applies filters, preserves them during pagination and clears them", async () => {
+    const requests: PublicBookListQuery[] = [];
+    const catalog: CatalogBooksApi = {
+      async getBooks(query) {
+        requests.push(query);
+
+        return createResponse(query.page ?? 1, 2);
+      },
+      async getAuthors() {
+        return {
+          items: [
+            {
+              name: "Ada Lovelace",
+              slug: "ada-lovelace",
+            },
+          ],
+        };
+      },
+      async getCategories() {
+        return {
+          items: [
+            {
+              name: "Programowanie",
+              slug: "programowanie",
+            },
+          ],
+        };
+      },
+    };
+
+    render(<CatalogPage catalog={catalog} />);
+
+    await screen.findByRole("heading", { name: "Książka 1" });
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "Kategoria" })).toBeEnabled();
+    });
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Szukaj" }), {
+      target: { value: "  TypeScript  " },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Kategoria" }), {
+      target: { value: "programowanie" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Autor" }), {
+      target: { value: "ada-lovelace" },
+    });
+    fireEvent.change(
+      screen.getByRole("combobox", {
+        name: "Sortuj według",
+      }),
+      {
+        target: { value: "price" },
+      },
+    );
+    fireEvent.change(screen.getByRole("combobox", { name: "Kierunek" }), {
+      target: { value: "asc" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Zastosuj" }));
+
+    await waitFor(() => {
+      expect(requests.at(-1)).toEqual({
+        page: 1,
+        pageSize: 12,
+        query: "TypeScript",
+        category: "programowanie",
+        author: "ada-lovelace",
+        sortBy: "price",
+        sortOrder: "asc",
+      });
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Następna" }));
+
+    await waitFor(() => {
+      expect(requests.at(-1)).toEqual({
+        page: 2,
+        pageSize: 12,
+        query: "TypeScript",
+        category: "programowanie",
+        author: "ada-lovelace",
+        sortBy: "price",
+        sortOrder: "asc",
+      });
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Wyczyść" }));
+
+    await waitFor(() => {
+      expect(requests.at(-1)).toEqual({
+        page: 1,
+        pageSize: 12,
+      });
+    });
+    expect(screen.getByRole("searchbox", { name: "Szukaj" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Sortuj według" })).toHaveValue("");
+  });
+
+  it("keeps the book list available when filter options fail", async () => {
+    const catalog: CatalogBooksApi = {
+      async getBooks(query) {
+        return createResponse(query.page ?? 1, 1);
+      },
+      async getAuthors() {
+        throw new Error("authors unavailable");
+      },
+      async getCategories() {
+        return {
+          items: [
+            {
+              name: "Programowanie",
+              slug: "programowanie",
+            },
+          ],
+        };
+      },
+    };
+
+    render(<CatalogPage catalog={catalog} />);
+
+    expect(await screen.findByRole("heading", { name: "Książka 1" })).toBeInTheDocument();
+    expect(
+      await screen.findByText("Nie udało się pobrać części filtrów. Lista książek nadal działa."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Programowanie" })).toBeInTheDocument();
   });
 
   it("shows an API error and retries the current page", async () => {
