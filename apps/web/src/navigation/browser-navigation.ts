@@ -1,5 +1,6 @@
 export type AppRoute =
   | { readonly name: "catalog" }
+  | { readonly name: "login" }
   | {
       readonly name: "book-details";
       readonly slug: string;
@@ -22,21 +23,40 @@ export function readBrowserRoute(pathname = window.location.pathname): AppRoute 
   const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
 
   if (normalizedPathname === "/") {
-    return { name: "catalog" };
+    return {
+      name: "catalog",
+    };
+  }
+
+  if (normalizedPathname === "/login") {
+    return {
+      name: "login",
+    };
   }
 
   const match = /^\/books\/([^/]+)$/.exec(normalizedPathname);
 
   if (!match) {
-    return { name: "not-found" };
+    return {
+      name: "not-found",
+    };
   }
 
   try {
     const slug = decodeURIComponent(match[1] ?? "").trim();
 
-    return slug ? { name: "book-details", slug } : { name: "not-found" };
+    return slug
+      ? {
+          name: "book-details",
+          slug,
+        }
+      : {
+          name: "not-found",
+        };
   } catch {
-    return { name: "not-found" };
+    return {
+      name: "not-found",
+    };
   }
 }
 
@@ -71,7 +91,7 @@ export function installBrowserNavigation(onRouteChange: (route: AppRoute) => voi
 
     event.preventDefault();
 
-    const nextLocation = `${link.pathname}${link.search}${link.hash}`;
+    const nextLocation = `${link.pathname}` + `${link.search}` + `${link.hash}`;
 
     const currentLocation =
       `${window.location.pathname}` + `${window.location.search}` + `${window.location.hash}`;
