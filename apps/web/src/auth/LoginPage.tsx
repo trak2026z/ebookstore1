@@ -142,6 +142,13 @@ export function LoginPage({ auth, onAuthenticated }: LoginPageProps) {
           </button>
         </form>
 
+        <p>
+          Nie masz konta?{" "}
+          <a href="/register" data-app-link="true">
+            Utwórz konto
+          </a>
+        </p>
+
         <a className="login-page__back" href="/" data-app-link="true">
           Wróć do katalogu
         </a>
