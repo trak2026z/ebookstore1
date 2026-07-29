@@ -40,6 +40,16 @@ body {
   min-height: 4.5rem;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.site-header__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .brand {
@@ -53,6 +63,30 @@ body {
   padding: 0.35rem 0.65rem;
   border: 1px solid #c9d4e5;
   border-radius: 999px;
+}
+
+.site-header__auth-link {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  padding-inline: 0.85rem;
+  border: 1px solid #315fd4;
+  border-radius: 0.65rem;
+  color: #315fd4;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-header__auth-link:hover {
+  background: #eef3ff;
+}
+
+.site-header__account {
+  display: inline-block;
+  max-width: 18rem;
+  color: #315fd4;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .hero {
@@ -448,6 +482,106 @@ h1 {
 .book-details__price {
   font-size: 1.5rem;
   font-weight: 750;
+}
+
+.login-page {
+  padding-block: clamp(2rem, 7vw, 6rem);
+}
+
+.login-card {
+  width: min(100%, 32rem);
+  margin-inline: auto;
+  padding: clamp(1.5rem, 5vw, 2.5rem);
+  border: 1px solid #dfe5ef;
+  border-radius: 0.85rem;
+  background: white;
+}
+
+.login-card h1,
+.login-card .eyebrow,
+.login-card__summary {
+  margin-top: 0;
+}
+
+.login-card h1 {
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  line-height: 1;
+}
+
+.login-card__summary {
+  color: #526079;
+  line-height: 1.6;
+}
+
+.login-form {
+  display: grid;
+  margin-top: 1.5rem;
+  gap: 1rem;
+}
+
+.login-form label {
+  display: grid;
+  gap: 0.4rem;
+  color: #526079;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.login-form input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding-inline: 0.75rem;
+  border: 1px solid #c9d4e5;
+  border-radius: 0.65rem;
+  background: white;
+  color: #172033;
+  font: inherit;
+}
+
+.login-form input:focus {
+  border-color: #315fd4;
+  outline: 3px solid #dbe5ff;
+}
+
+.login-form input:disabled {
+  background: #e8edf5;
+  color: #66738a;
+}
+
+.login-form__error {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid #d9a7a7;
+  border-radius: 0.65rem;
+  background: #fff7f7;
+  color: #8f2424;
+}
+
+.login-form button {
+  min-height: 2.75rem;
+  border: 1px solid #315fd4;
+  border-radius: 0.65rem;
+  background: #315fd4;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.login-form button:disabled {
+  border-color: #c9d4e5;
+  background: #e8edf5;
+  color: #66738a;
+  cursor: wait;
+}
+
+.login-page__back {
+  display: inline-flex;
+  margin-top: 1.5rem;
+  color: #315fd4;
+  font-weight: 700;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
 }
 
 @media (min-width: 48rem) {

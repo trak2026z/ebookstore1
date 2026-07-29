@@ -22,9 +22,13 @@ describe("browser navigation", () => {
     expect(() => createBookPath("   ")).toThrow(TypeError);
   });
 
-  it("resolves catalog, detail and unknown routes", () => {
+  it("resolves catalog, login, detail and unknown routes", () => {
     expect(readBrowserRoute("/")).toEqual({
       name: "catalog",
+    });
+
+    expect(readBrowserRoute("/login/")).toEqual({
+      name: "login",
     });
 
     expect(readBrowserRoute("/books/typescript%20bez%20tajemnic/")).toEqual({
@@ -60,6 +64,7 @@ describe("browser navigation", () => {
     );
 
     expect(window.location.pathname).toBe("/books/typescript");
+
     expect(routes).toEqual([
       {
         name: "book-details",
@@ -77,6 +82,7 @@ describe("browser navigation", () => {
     });
 
     window.history.replaceState(null, "", "/books/react");
+
     window.dispatchEvent(new PopStateEvent("popstate"));
 
     expect(routes).toEqual([

@@ -2,6 +2,9 @@
 
 import "@testing-library/jest-dom/vitest";
 import type {
+  AuthUserResponse,
+  LoginRequest,
+  LoginResponse,
   PublicBookDetailsResponse,
   PublicBookListItem,
   PublicBookListResponse,
@@ -10,6 +13,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import App, { type AppCatalogApi } from "./App";
+import type { LoginApi } from "./auth/LoginPage";
 
 const bookListItem: PublicBookListItem = {
   id: "book-1",
@@ -43,6 +47,21 @@ const bookDetails: PublicBookDetailsResponse = {
   description: "Praktyczny przewodnik po TypeScript.",
 };
 
+const authUser: AuthUserResponse = {
+  id: "user-1",
+  email: "user@example.com",
+  displayName: "Tomasz",
+  role: "USER",
+  createdAt: "2026-07-22T10:00:00.000Z",
+};
+
+const loginResponse: LoginResponse = {
+  accessToken: "signed.jwt.token",
+  tokenType: "Bearer",
+  expiresIn: 900,
+  user: authUser,
+};
+
 function createListResponse(items: readonly PublicBookListItem[]): PublicBookListResponse {
   return {
     items,
@@ -55,20 +74,35 @@ function createListResponse(items: readonly PublicBookListItem[]): PublicBookLis
   };
 }
 
+function createCatalog(): AppCatalogApi {
+  return {
+    async getBooks() {
+      return createListResponse([]);
+    },
+
+    async getBook() {
+      return bookDetails;
+    },
+  };
+}
+
 afterEach(() => {
   cleanup();
+
   window.history.replaceState(null, "", "/");
 });
 
 describe("App", () => {
   it("renders the public catalog shell and loads its first page", async () => {
     const requestedPages: number[] = [];
+
     const catalog: AppCatalogApi = {
       async getBooks(query) {
         requestedPages.push(query.page ?? 1);
 
         return createListResponse([]);
       },
+
       async getBook() {
         return bookDetails;
       },
@@ -92,10 +126,12 @@ describe("App", () => {
 
   it("opens a book from the catalog without reloading the application", async () => {
     const requestedSlugs: string[] = [];
+
     const catalog: AppCatalogApi = {
       async getBooks() {
         return createListResponse([bookListItem]);
       },
+
       async getBook(slug) {
         requestedSlugs.push(slug);
 
@@ -124,14 +160,7 @@ describe("App", () => {
   });
 
   it("renders a direct book URL and returns to the catalog through history", async () => {
-    const catalog: AppCatalogApi = {
-      async getBooks() {
-        return createListResponse([]);
-      },
-      async getBook() {
-        return bookDetails;
-      },
-    };
+    const catalog = createCatalog();
 
     window.history.replaceState(null, "", `/books/${bookDetails.slug}`);
 
@@ -145,6 +174,7 @@ describe("App", () => {
     ).toBeInTheDocument();
 
     window.history.pushState(null, "", "/");
+
     window.dispatchEvent(new PopStateEvent("popstate"));
 
     expect(
@@ -153,5 +183,78 @@ describe("App", () => {
         name: "Ebookstore",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("renders the login page from a direct URL", () => {
+    const auth: LoginApi = {
+      async login() {
+        return loginResponse;
+      },
+    };
+
+    window.history.replaceState(null, "", "/login");
+
+    render(<App catalog={createCatalog()} auth={auth} />);
+
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "Zaloguj się",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("stores a successful session in memory and returns to the catalog", async () => {
+    const requests: LoginRequest[] = [];
+
+    const auth: LoginApi = {
+      async login(request) {
+        requests.push(request);
+
+        return loginResponse;
+      },
+    };
+
+    window.history.replaceState(null, "", "/login");
+
+    render(<App catalog={createCatalog()} auth={auth} />);
+
+    fireEvent.change(screen.getByLabelText("Adres e-mail"), {
+      target: {
+        value: " user@example.com ",
+      },
+    });
+
+    fireEvent.change(screen.getByLabelText("Hasło"), {
+      target: {
+        value: "Correct-Horse-42",
+      },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Zaloguj się",
+      }),
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Ebookstore",
+      }),
+    ).toBeInTheDocument();
+
+    expect(window.location.pathname).toBe("/");
+
+    expect(screen.getByLabelText("Zalogowano jako user@example.com")).toHaveTextContent(
+      "user@example.com",
+    );
+
+    expect(requests).toEqual([
+      {
+        email: "user@example.com",
+        password: "Correct-Horse-42",
+      },
+    ]);
   });
 });
