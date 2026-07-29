@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 
 import { authApi } from "./api/auth-api";
 import { catalogApi } from "./api/catalog-api";
-import { LoginPage, type LoginApi } from "./auth/LoginPage";
+import { LoginPage } from "./auth/LoginPage";
+import { RegisterPage, type RegistrationApi } from "./auth/RegisterPage";
 import type { AuthSession } from "./auth/auth-session";
 import { BookDetails, type BookDetailsApi } from "./catalog/BookDetails";
 import { CatalogPage, type CatalogBooksApi } from "./catalog/CatalogPage";
@@ -16,7 +17,7 @@ export interface AppCatalogApi extends CatalogBooksApi, BookDetailsApi {}
 
 export interface AppProps {
   readonly catalog?: AppCatalogApi;
-  readonly auth?: LoginApi;
+  readonly auth?: RegistrationApi;
 }
 
 function CatalogHero() {
@@ -57,7 +58,7 @@ function MainContent({
 }: {
   readonly route: AppRoute;
   readonly catalog: AppCatalogApi;
-  readonly auth: LoginApi;
+  readonly auth: RegistrationApi;
   readonly onAuthenticated: (session: AuthSession) => void;
 }) {
   if (route.name === "book-details") {
@@ -66,6 +67,10 @@ function MainContent({
 
   if (route.name === "login") {
     return <LoginPage auth={auth} onAuthenticated={onAuthenticated} />;
+  }
+
+  if (route.name === "register") {
+    return <RegisterPage auth={auth} onAuthenticated={onAuthenticated} />;
   }
 
   if (route.name === "not-found") {

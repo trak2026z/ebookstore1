@@ -13,7 +13,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import App, { type AppCatalogApi } from "./App";
-import type { LoginApi } from "./auth/LoginPage";
+import type { RegistrationApi } from "./auth/RegisterPage";
 
 const bookListItem: PublicBookListItem = {
   id: "book-1",
@@ -186,7 +186,11 @@ describe("App", () => {
   });
 
   it("renders the login page from a direct URL", () => {
-    const auth: LoginApi = {
+    const auth: RegistrationApi = {
+      async register() {
+        return authUser;
+      },
+
       async login() {
         return loginResponse;
       },
@@ -207,7 +211,11 @@ describe("App", () => {
   it("stores a successful session in memory and returns to the catalog", async () => {
     const requests: LoginRequest[] = [];
 
-    const auth: LoginApi = {
+    const auth: RegistrationApi = {
+      async register() {
+        return authUser;
+      },
+
       async login(request) {
         requests.push(request);
 
