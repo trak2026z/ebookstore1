@@ -87,6 +87,7 @@ body {
   color: #315fd4;
   font-weight: 700;
   overflow-wrap: anywhere;
+  text-decoration: none;
 }
 
 .hero {
@@ -582,6 +583,119 @@ h1 {
   font-weight: 700;
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.18em;
+}
+
+.profile-page {
+  padding-block: clamp(2rem, 7vw, 6rem);
+}
+
+.profile-card {
+  width: min(100%, 42rem);
+  margin-inline: auto;
+  padding: clamp(1.5rem, 5vw, 2.5rem);
+  border: 1px solid #dfe5ef;
+  border-radius: 0.85rem;
+  background: white;
+}
+
+.profile-card h1,
+.profile-card .eyebrow,
+.profile-card__summary {
+  margin-top: 0;
+}
+
+.profile-card h1 {
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  line-height: 1;
+}
+
+.profile-card__summary {
+  color: #526079;
+  line-height: 1.6;
+}
+
+.profile-card--message {
+  max-width: 36rem;
+}
+
+.profile-status {
+  margin-block: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #dfe5ef;
+  border-radius: 0.65rem;
+  background: #f7f9fc;
+}
+
+.profile-status--error {
+  border-color: #d9a7a7;
+  background: #fff7f7;
+  color: #8f2424;
+}
+
+.profile-status--error p {
+  margin-top: 0;
+}
+
+.profile-status--error button {
+  min-height: 2.75rem;
+  padding-inline: 1rem;
+  border: 1px solid #315fd4;
+  border-radius: 0.65rem;
+  background: #315fd4;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-details {
+  display: grid;
+  margin-block: 1.5rem;
+  gap: 1rem;
+}
+
+.profile-details > div {
+  padding: 1rem;
+  border: 1px solid #dfe5ef;
+  border-radius: 0.65rem;
+  background: #f7f9fc;
+}
+
+.profile-details dt {
+  color: #66738a;
+  font-size: 0.8rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.profile-details dd {
+  margin: 0.35rem 0 0;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.profile-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+  gap: 0.75rem;
+}
+
+.profile-actions a {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  padding-inline: 1rem;
+  border: 1px solid #315fd4;
+  border-radius: 0.65rem;
+  color: #315fd4;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.profile-actions a:hover {
+  background: #eef3ff;
 }
 
 @media (min-width: 48rem) {

@@ -2,6 +2,7 @@ export type AppRoute =
   | { readonly name: "catalog" }
   | { readonly name: "login" }
   | { readonly name: "register" }
+  | { readonly name: "profile" }
   | {
       readonly name: "book-details";
       readonly slug: string;
@@ -38,6 +39,12 @@ export function readBrowserRoute(pathname = window.location.pathname): AppRoute 
   if (normalizedPathname === "/register") {
     return {
       name: "register",
+    };
+  }
+
+  if (normalizedPathname === "/profile") {
+    return {
+      name: "profile",
     };
   }
 

@@ -22,13 +22,21 @@ describe("browser navigation", () => {
     expect(() => createBookPath("   ")).toThrow(TypeError);
   });
 
-  it("resolves catalog, login, detail and unknown routes", () => {
+  it("resolves public, authentication, profile, detail and unknown routes", () => {
     expect(readBrowserRoute("/")).toEqual({
       name: "catalog",
     });
 
     expect(readBrowserRoute("/login/")).toEqual({
       name: "login",
+    });
+
+    expect(readBrowserRoute("/register/")).toEqual({
+      name: "register",
+    });
+
+    expect(readBrowserRoute("/profile/")).toEqual({
+      name: "profile",
     });
 
     expect(readBrowserRoute("/books/typescript%20bez%20tajemnic/")).toEqual({
