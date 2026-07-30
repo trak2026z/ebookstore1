@@ -71,12 +71,13 @@ export function RegisterPage({ auth, onAuthenticated }: RegisterPageProps) {
   const submitInProgress = useRef(false);
   const mounted = useRef(true);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+
+    return () => {
       mounted.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
   const isSubmitting = state.status === "submitting";
 

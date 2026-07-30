@@ -3,6 +3,7 @@
 import "@testing-library/jest-dom/vitest";
 import type { AuthUserResponse, LoginResponse } from "@ebookstore/contracts";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiClientError } from "../api/api-client";
@@ -121,11 +122,15 @@ describe("RegisterPage", () => {
     expect(login).not.toHaveBeenCalled();
   });
 
-  it("registers, logs in and returns an in-memory session", async () => {
+  it("registers, logs in and returns an in-memory session under StrictMode", async () => {
     const { auth, register, login } = createApi();
     const onAuthenticated = vi.fn();
 
-    render(<RegisterPage auth={auth} onAuthenticated={onAuthenticated} />);
+    render(
+      <StrictMode>
+        <RegisterPage auth={auth} onAuthenticated={onAuthenticated} />
+      </StrictMode>,
+    );
 
     fillRegistrationForm();
 
