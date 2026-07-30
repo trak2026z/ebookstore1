@@ -90,6 +90,34 @@ body {
   text-decoration: none;
 }
 
+.site-header__account-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.site-header__logout {
+  min-height: 2.5rem;
+  padding-inline: 0.85rem;
+  border: 1px solid #8f2424;
+  border-radius: 0.65rem;
+  background: white;
+  color: #8f2424;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.site-header__logout:hover {
+  background: #fff1f1;
+}
+
+.site-header__logout:focus-visible {
+  outline: 3px solid #ffd8d8;
+  outline-offset: 2px;
+}
+
 .hero {
   padding-block: clamp(4rem, 11vw, 8rem);
 }

@@ -6,6 +6,7 @@ import { LoginPage } from "./auth/LoginPage";
 import { ProfileAccessRequired, ProfilePage, type ProfileApi } from "./auth/ProfilePage";
 import { RegisterPage, type RegistrationApi } from "./auth/RegisterPage";
 import type { AuthSession } from "./auth/auth-session";
+import { scheduleSessionExpiry } from "./auth/session-expiry";
 import { BookDetails, type BookDetailsApi } from "./catalog/BookDetails";
 import { CatalogPage, type CatalogBooksApi } from "./catalog/CatalogPage";
 import {
@@ -112,19 +113,43 @@ export default function App({ catalog = catalogApi, auth = authApi, profile = au
 
   useEffect(() => installBrowserNavigation(setRoute), []);
 
-  const handleAuthenticated = useCallback((session: AuthSession): void => {
-    setAuthSession(session);
+  const navigateToCatalog = useCallback((): void => {
+    const currentLocation =
+      `${window.location.pathname}` + `${window.location.search}` + `${window.location.hash}`;
 
-    window.history.pushState(null, "", "/");
+    if (currentLocation !== "/") {
+      window.history.pushState(null, "", "/");
+    }
 
     setRoute({
       name: "catalog",
     });
   }, []);
 
-  const handleSessionRejected = useCallback((): void => {
+  const clearAuthSession = useCallback((): void => {
     setAuthSession(null);
   }, []);
+
+  const handleAuthenticated = useCallback(
+    (session: AuthSession): void => {
+      setAuthSession(session);
+      navigateToCatalog();
+    },
+    [navigateToCatalog],
+  );
+
+  const handleLogout = useCallback((): void => {
+    clearAuthSession();
+    navigateToCatalog();
+  }, [clearAuthSession, navigateToCatalog]);
+
+  useEffect(() => {
+    if (!authSession) {
+      return;
+    }
+
+    return scheduleSessionExpiry(authSession.expiresAt, clearAuthSession);
+  }, [authSession, clearAuthSession]);
 
   return (
     <>
@@ -146,16 +171,22 @@ export default function App({ catalog = catalogApi, auth = authApi, profile = au
           <div className="site-header__actions">
             <span className="stage-badge">Publiczny katalog</span>
 
-            <nav aria-label="Konto użytkownika">
+            <nav className="site-header__account-controls" aria-label="Konto użytkownika">
               {authSession ? (
-                <a
-                  className="site-header__account"
-                  href="/profile"
-                  aria-label={`Zalogowano jako ${authSession.user.email}`}
-                  data-app-link="true"
-                >
-                  {authSession.user.email}
-                </a>
+                <>
+                  <a
+                    className="site-header__account"
+                    href="/profile"
+                    aria-label={`Zalogowano jako ${authSession.user.email}`}
+                    data-app-link="true"
+                  >
+                    {authSession.user.email}
+                  </a>
+
+                  <button className="site-header__logout" type="button" onClick={handleLogout}>
+                    Wyloguj się
+                  </button>
+                </>
               ) : (
                 <a className="site-header__auth-link" href="/login" data-app-link="true">
                   Zaloguj się
@@ -174,7 +205,7 @@ export default function App({ catalog = catalogApi, auth = authApi, profile = au
           profile={profile}
           authSession={authSession}
           onAuthenticated={handleAuthenticated}
-          onSessionRejected={handleSessionRejected}
+          onSessionRejected={clearAuthSession}
         />
       </main>
 

@@ -139,6 +139,7 @@ describe("RegisterPage", () => {
       expect(onAuthenticated).toHaveBeenCalledWith({
         accessToken: "signed.jwt.token",
         user: authUser,
+        expiresAt: expect.any(Number),
       });
     });
 
