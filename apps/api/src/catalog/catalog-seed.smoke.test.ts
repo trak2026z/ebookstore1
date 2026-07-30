@@ -52,8 +52,11 @@ describeDatabaseSmoke("Catalog seed PostgreSQL smoke", () => {
       authors: CATALOG_SEED.authors.length,
       categories: CATALOG_SEED.categories.length,
       books: CATALOG_SEED.books.length,
-      authorRelations: 7,
-      categoryRelations: 7,
+      authorRelations: CATALOG_SEED.books.reduce((total, book) => total + book.authors.length, 0),
+      categoryRelations: CATALOG_SEED.books.reduce(
+        (total, book) => total + book.categories.length,
+        0,
+      ),
     });
   });
 

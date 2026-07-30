@@ -25,6 +25,10 @@ describe("CATALOG_SEED", () => {
     );
   });
 
+  it("contains 20 published books to exercise web pagination", () => {
+    expect(CATALOG_SEED.books.filter((book) => book.status === "PUBLISHED")).toHaveLength(20);
+  });
+
   it("contains books with multiple authors and categories", () => {
     expect(CATALOG_SEED.books.some((book) => book.authors.length > 1)).toBe(true);
     expect(CATALOG_SEED.books.some((book) => book.categories.length > 1)).toBe(true);
