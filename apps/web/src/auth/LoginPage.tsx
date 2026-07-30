@@ -41,12 +41,13 @@ export function LoginPage({ auth, onAuthenticated }: LoginPageProps) {
   const submitInProgress = useRef(false);
   const mounted = useRef(true);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+
+    return () => {
       mounted.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
   const isSubmitting = state.status === "submitting";
 

@@ -3,6 +3,7 @@
 import "@testing-library/jest-dom/vitest";
 import type { AuthUserResponse, LoginResponse } from "@ebookstore/contracts";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiClientError } from "../api/api-client";
@@ -54,11 +55,15 @@ describe("LoginPage", () => {
     expect(screen.getByLabelText("Hasło")).toHaveAttribute("autocomplete", "current-password");
   });
 
-  it("submits a normalized email and returns an in-memory session", async () => {
+  it("submits a normalized email and returns an in-memory session under StrictMode", async () => {
     const login = vi.fn<LoginApi["login"]>().mockResolvedValue(loginResponse);
     const onAuthenticated = vi.fn();
 
-    render(<LoginPage auth={{ login }} onAuthenticated={onAuthenticated} />);
+    render(
+      <StrictMode>
+        <LoginPage auth={{ login }} onAuthenticated={onAuthenticated} />
+      </StrictMode>,
+    );
 
     fillLoginForm();
 
