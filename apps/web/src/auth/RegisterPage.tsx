@@ -1,8 +1,4 @@
-import type {
-  AuthUserResponse,
-  LoginRequest,
-  RegisterRequest,
-} from "@ebookstore/contracts";
+import type { AuthUserResponse, LoginRequest, RegisterRequest } from "@ebookstore/contracts";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { ApiClientError } from "../api/api-client";

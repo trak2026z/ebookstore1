@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { authApi } from "./api/auth-api";
 import { catalogApi } from "./api/catalog-api";
 import { LoginPage } from "./auth/LoginPage";
+import { ProfileAccessRequired, ProfilePage, type ProfileApi } from "./auth/ProfilePage";
 import { RegisterPage, type RegistrationApi } from "./auth/RegisterPage";
 import type { AuthSession } from "./auth/auth-session";
 import { BookDetails, type BookDetailsApi } from "./catalog/BookDetails";
@@ -18,6 +19,7 @@ export interface AppCatalogApi extends CatalogBooksApi, BookDetailsApi {}
 export interface AppProps {
   readonly catalog?: AppCatalogApi;
   readonly auth?: RegistrationApi;
+  readonly profile?: ProfileApi;
 }
 
 function CatalogHero() {
@@ -54,12 +56,18 @@ function MainContent({
   route,
   catalog,
   auth,
+  profile,
+  authSession,
   onAuthenticated,
+  onSessionRejected,
 }: {
   readonly route: AppRoute;
   readonly catalog: AppCatalogApi;
   readonly auth: RegistrationApi;
+  readonly profile: ProfileApi;
+  readonly authSession: AuthSession | null;
   readonly onAuthenticated: (session: AuthSession) => void;
+  readonly onSessionRejected: () => void;
 }) {
   if (route.name === "book-details") {
     return <BookDetails slug={route.slug} catalog={catalog} />;
@@ -71,6 +79,18 @@ function MainContent({
 
   if (route.name === "register") {
     return <RegisterPage auth={auth} onAuthenticated={onAuthenticated} />;
+  }
+
+  if (route.name === "profile") {
+    return authSession ? (
+      <ProfilePage
+        accessToken={authSession.accessToken}
+        auth={profile}
+        onSessionRejected={onSessionRejected}
+      />
+    ) : (
+      <ProfileAccessRequired />
+    );
   }
 
   if (route.name === "not-found") {
@@ -85,14 +105,14 @@ function MainContent({
   );
 }
 
-export default function App({ catalog = catalogApi, auth = authApi }: AppProps) {
+export default function App({ catalog = catalogApi, auth = authApi, profile = authApi }: AppProps) {
   const [route, setRoute] = useState<AppRoute>(readBrowserRoute);
 
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
 
   useEffect(() => installBrowserNavigation(setRoute), []);
 
-  function handleAuthenticated(session: AuthSession): void {
+  const handleAuthenticated = useCallback((session: AuthSession): void => {
     setAuthSession(session);
 
     window.history.pushState(null, "", "/");
@@ -100,7 +120,11 @@ export default function App({ catalog = catalogApi, auth = authApi }: AppProps) 
     setRoute({
       name: "catalog",
     });
-  }
+  }, []);
+
+  const handleSessionRejected = useCallback((): void => {
+    setAuthSession(null);
+  }, []);
 
   return (
     <>
@@ -124,12 +148,14 @@ export default function App({ catalog = catalogApi, auth = authApi }: AppProps) 
 
             <nav aria-label="Konto użytkownika">
               {authSession ? (
-                <span
+                <a
                   className="site-header__account"
+                  href="/profile"
                   aria-label={`Zalogowano jako ${authSession.user.email}`}
+                  data-app-link="true"
                 >
                   {authSession.user.email}
-                </span>
+                </a>
               ) : (
                 <a className="site-header__auth-link" href="/login" data-app-link="true">
                   Zaloguj się
@@ -145,7 +171,10 @@ export default function App({ catalog = catalogApi, auth = authApi }: AppProps) 
           route={route}
           catalog={catalog}
           auth={auth}
+          profile={profile}
+          authSession={authSession}
           onAuthenticated={handleAuthenticated}
+          onSessionRejected={handleSessionRejected}
         />
       </main>
 
