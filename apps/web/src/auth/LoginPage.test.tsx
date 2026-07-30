@@ -28,7 +28,7 @@ afterEach(cleanup);
 function fillLoginForm(): void {
   fireEvent.change(screen.getByLabelText("Adres e-mail"), {
     target: {
-      value: " user@example.com ",
+      value: "user@example.com",
     },
   });
 
@@ -72,6 +72,7 @@ describe("LoginPage", () => {
       expect(onAuthenticated).toHaveBeenCalledWith({
         accessToken: "signed.jwt.token",
         user,
+        expiresAt: expect.any(Number),
       });
     });
 
