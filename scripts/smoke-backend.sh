@@ -84,6 +84,8 @@ import json
 import sys
 
 mode, path = sys.argv[1:3]
+email = sys.argv[3] if len(sys.argv) > 3 else None
+
 with open(path, encoding="utf-8") as handle:
     payload = json.load(handle)
 
@@ -104,6 +106,21 @@ def private(value):
         for child in value:
             private(child)
 
+def public_user(user):
+    assert email is not None and user["email"] == email, user
+    assert user["role"] == "USER", user
+    assert isinstance(user["id"], str) and user["id"], user
+    assert isinstance(user["createdAt"], str) and user["createdAt"], user
+
+    forbidden = {
+        "password",
+        "passwordHash",
+        "isActive",
+        "updatedAt",
+    }
+    leaked = forbidden.intersection(user)
+    assert not leaked, f"private user fields leaked: {sorted(leaked)}"
+
 if mode == "health":
     assert payload == {"status": "ok"}, payload
 elif mode == "ready":
@@ -120,11 +137,44 @@ elif mode == "list":
     slugs = {item["slug"] for item in payload["items"]}
     assert {"typescript-w-praktyce", "architektura-aplikacji-node-js"} <= slugs, payload
     assert {"bezpieczne-api-w-nestjs", "refaktoryzacja-javascript"}.isdisjoint(slugs), payload
-    assert payload["pagination"]["page"] == 1, payload
-    assert payload["pagination"]["pageSize"] == 20, payload
+    assert len(payload["items"]) == 20, payload
+    assert payload["pagination"] == {
+        "page": 1,
+        "pageSize": 20,
+        "totalItems": 20,
+        "totalPages": 1,
+    }, payload
+    private(payload)
+elif mode == "page1":
+    assert len(payload["items"]) == 12, payload
+    assert payload["pagination"] == {
+        "page": 1,
+        "pageSize": 12,
+        "totalItems": 20,
+        "totalPages": 2,
+    }, payload
+    private(payload)
+elif mode == "page2":
+    assert len(payload["items"]) == 8, payload
+    assert payload["pagination"] == {
+        "page": 2,
+        "pageSize": 12,
+        "totalItems": 20,
+        "totalPages": 2,
+    }, payload
     private(payload)
 elif mode == "search":
-    assert payload["items"][0]["slug"] == "typescript-w-praktyce", payload
+    expected = {
+        "typescript-w-praktyce",
+        "testowanie-aplikacji-typescript",
+        "wzorce-projektowe-w-typescript",
+        "refaktoryzacja-typescript",
+    }
+    actual = {item["slug"] for item in payload["items"]}
+
+    assert actual == expected, payload
+    assert payload["pagination"]["totalItems"] == len(expected), payload
+    private(payload)
 elif mode == "filtered":
     expected = ["typescript-w-praktyce", "architektura-aplikacji-node-js"]
     selected = [item["slug"] for item in payload["items"] if item["slug"] in expected]
@@ -157,6 +207,18 @@ elif mode == "validation":
     error("VALIDATION_ERROR")
 elif mode == "unauthorized":
     error("UNAUTHORIZED")
+elif mode == "register":
+    public_user(payload)
+    assert payload["displayName"] == "Smoke User", payload
+elif mode == "login":
+    assert payload["tokenType"] == "Bearer", payload
+    assert isinstance(payload["expiresIn"], int) and payload["expiresIn"] > 0, payload
+    assert isinstance(payload["accessToken"], str) and payload["accessToken"], payload
+    public_user(payload["user"])
+elif mode == "me":
+    public_user(payload)
+elif mode == "conflict":
+    error("CONFLICT")
 else:
     raise AssertionError(f"unknown check mode: {mode}")
 PY
@@ -184,6 +246,67 @@ request() {
 check_json() {
   python3 -S "$TMP_DIR/check.py" "$1" "$LAST_BODY" || fail "JSON contract failed: $1"
   test_pass "JSON contract: $1"
+}
+
+request_with_method() {
+  local name="$1"
+  local method="$2"
+  local path="$3"
+  local expected="$4"
+  local safe
+  local status
+
+  shift 4
+
+  safe="$(printf '%s' "$name" | tr ' /' '__' | tr -cd '[:alnum:]_.-')"
+  LAST_BODY="$TMP_DIR/$safe.body"
+  LAST_HEADERS="$TMP_DIR/$safe.headers"
+
+  if ! status="$(
+    curl -sS       --connect-timeout 3       --max-time 15       -X "$method"       -D "$LAST_HEADERS"       -o "$LAST_BODY"       -w '%{http_code}'       "$@"       "${API_BASE%/}${path}"
+  )"; then
+    fail "$name could not connect to ${API_BASE%/}${path}"
+  fi
+
+  [[ "$status" == "$expected" ]] ||
+    fail "$name returned HTTP $status; expected $expected"
+
+  test_pass "$name returned HTTP $status"
+}
+
+check_auth_json() {
+  python3 -S     "$TMP_DIR/check.py"     "$1"     "$LAST_BODY"     "$2" ||
+    fail "JSON contract failed: $1"
+
+  test_pass "JSON contract: $1"
+}
+
+check_pagination_pair() {
+  python3 -S - "$1" "$2" <<'PY' || fail "Pagination pages overlap or are incomplete"
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    page_one = json.load(handle)
+
+with open(sys.argv[2], encoding="utf-8") as handle:
+    page_two = json.load(handle)
+
+page_one_slugs = {item["slug"] for item in page_one["items"]}
+page_two_slugs = {item["slug"] for item in page_two["items"]}
+
+assert page_one_slugs.isdisjoint(page_two_slugs), {
+    "pageOne": sorted(page_one_slugs),
+    "pageTwo": sorted(page_two_slugs),
+}
+
+assert len(page_one_slugs | page_two_slugs) == 20, {
+    "pageOne": sorted(page_one_slugs),
+    "pageTwo": sorted(page_two_slugs),
+}
+PY
+
+  test_pass "pagination pages are disjoint and contain all 20 published books"
 }
 
 wait_for_postgres() {
@@ -249,7 +372,7 @@ require cmp
 [[ -f package.json ]] || fail "Run this script from the repository root containing package.json"
 docker info >/dev/null 2>&1 || fail "Docker daemon is not available"
 
-printf 'Ebookstore backend clean-room smoke test\nAPI: %s\n' "$API_BASE"
+printf 'Ebookstore backend and authentication clean-room smoke test\nAPI: %s\n' "$API_BASE"
 
 log "Resetting previous Docker Compose environment"
 ENV_TOUCHED=1
@@ -318,6 +441,16 @@ check_json categories
 request "book list" "/api/v1/books?page=1&pageSize=20" 200
 check_json list
 
+request "pagination page 1" "/api/v1/books?page=1&pageSize=12" 200
+check_json page1
+PAGE_ONE_BODY="$LAST_BODY"
+
+request "pagination page 2" "/api/v1/books?page=2&pageSize=12" 200
+check_json page2
+PAGE_TWO_BODY="$LAST_BODY"
+
+check_pagination_pair "$PAGE_ONE_BODY" "$PAGE_TWO_BODY"
+
 request "title search" "/api/v1/books?query=typescript" 200
 check_json search
 
@@ -379,3 +512,91 @@ check_json validation
 request "missing cover book" \
   "/api/v1/books/11111111-1111-4111-8111-111111111111/cover" 404
 check_json cover404
+
+log "Checking authentication endpoints"
+
+EMAIL="smoke.$(date +%s).$$@example.test"
+PASSWORD='Correct-Horse-42'
+DISPLAY_NAME='Smoke User'
+
+cat > "$TMP_DIR/register.json" <<JSON
+{
+  "email": "$EMAIL",
+  "displayName": "$DISPLAY_NAME",
+  "password": "$PASSWORD"
+}
+JSON
+
+cat > "$TMP_DIR/login.json" <<JSON
+{
+  "email": "$EMAIL",
+  "password": "$PASSWORD"
+}
+JSON
+
+cat > "$TMP_DIR/bad-login.json" <<JSON
+{
+  "email": "$EMAIL",
+  "password": "Definitely-Wrong-42"
+}
+JSON
+
+request_with_method \
+  "registration" \
+  POST \
+  "/auth/register" \
+  201 \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$TMP_DIR/register.json"
+check_auth_json register "$EMAIL"
+
+request_with_method \
+  "login" \
+  POST \
+  "/auth/login" \
+  200 \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$TMP_DIR/login.json"
+check_auth_json login "$EMAIL"
+
+TOKEN="$(
+  python3 -S -c \
+    'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["accessToken"])' \
+    "$LAST_BODY"
+)"
+
+[[ -n "$TOKEN" ]] ||
+  fail "login response did not contain an access token"
+
+request_with_method \
+  "current user" \
+  GET \
+  "/auth/me" \
+  200 \
+  -H "Authorization: Bearer $TOKEN"
+check_auth_json me "$EMAIL"
+
+request_with_method \
+  "duplicate registration" \
+  POST \
+  "/auth/register" \
+  409 \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$TMP_DIR/register.json"
+check_auth_json conflict "$EMAIL"
+
+request_with_method \
+  "invalid credentials" \
+  POST \
+  "/auth/login" \
+  401 \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$TMP_DIR/bad-login.json"
+check_auth_json unauthorized "$EMAIL"
+
+request_with_method \
+  "missing Bearer token" \
+  GET \
+  "/auth/me" \
+  401
+check_auth_json unauthorized "$EMAIL"
