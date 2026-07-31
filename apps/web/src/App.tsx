@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { adminUsersApi, type AdminUsersApi } from "./api/admin-users-api";
 import { authApi } from "./api/auth-api";
 import { catalogApi } from "./api/catalog-api";
+import { AdminAccessDenied, AdminAccessRequired, AdminUsersPage } from "./admin/AdminUsersPage";
 import { LoginPage } from "./auth/LoginPage";
 import { ProfileAccessRequired, ProfilePage, type ProfileApi } from "./auth/ProfilePage";
 import { RegisterPage, type RegistrationApi } from "./auth/RegisterPage";
@@ -21,6 +23,7 @@ export interface AppProps {
   readonly catalog?: AppCatalogApi;
   readonly auth?: RegistrationApi;
   readonly profile?: ProfileApi;
+  readonly adminUsers?: AdminUsersApi;
 }
 
 function CatalogHero() {
@@ -58,6 +61,7 @@ function MainContent({
   catalog,
   auth,
   profile,
+  adminUsers,
   authSession,
   onAuthenticated,
   onSessionRejected,
@@ -66,6 +70,7 @@ function MainContent({
   readonly catalog: AppCatalogApi;
   readonly auth: RegistrationApi;
   readonly profile: ProfileApi;
+  readonly adminUsers: AdminUsersApi;
   readonly authSession: AuthSession | null;
   readonly onAuthenticated: (session: AuthSession) => void;
   readonly onSessionRejected: () => void;
@@ -94,6 +99,24 @@ function MainContent({
     );
   }
 
+  if (route.name === "admin-users") {
+    if (!authSession) {
+      return <AdminAccessRequired />;
+    }
+
+    if (authSession.user.role !== "ADMIN") {
+      return <AdminAccessDenied />;
+    }
+
+    return (
+      <AdminUsersPage
+        accessToken={authSession.accessToken}
+        adminUsers={adminUsers}
+        onSessionRejected={onSessionRejected}
+      />
+    );
+  }
+
   if (route.name === "not-found") {
     return <UnknownRoute />;
   }
@@ -106,7 +129,12 @@ function MainContent({
   );
 }
 
-export default function App({ catalog = catalogApi, auth = authApi, profile = authApi }: AppProps) {
+export default function App({
+  catalog = catalogApi,
+  auth = authApi,
+  profile = authApi,
+  adminUsers = adminUsersApi,
+}: AppProps) {
   const [route, setRoute] = useState<AppRoute>(readBrowserRoute);
 
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
@@ -174,6 +202,12 @@ export default function App({ catalog = catalogApi, auth = authApi, profile = au
             <nav className="site-header__account-controls" aria-label="Konto użytkownika">
               {authSession ? (
                 <>
+                  {authSession.user.role === "ADMIN" && (
+                    <a className="site-header__admin-link" href="/admin/users" data-app-link="true">
+                      Użytkownicy
+                    </a>
+                  )}
+
                   <a
                     className="site-header__account"
                     href="/profile"
@@ -203,6 +237,7 @@ export default function App({ catalog = catalogApi, auth = authApi, profile = au
           catalog={catalog}
           auth={auth}
           profile={profile}
+          adminUsers={adminUsers}
           authSession={authSession}
           onAuthenticated={handleAuthenticated}
           onSessionRejected={clearAuthSession}
