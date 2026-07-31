@@ -7,6 +7,7 @@ import {
   createAdminUserPath,
   createAdminUsersPath,
   createBookPath,
+  EMPTY_ADMIN_USERS_QUERY,
   installBrowserNavigation,
   readBrowserRoute,
   type AppRoute,
@@ -20,16 +21,72 @@ afterEach(() => {
 describe("browser navigation", () => {
   it("creates encoded application paths and rejects invalid input", () => {
     expect(createBookPath(" TypeScript i React ")).toBe("/books/TypeScript%20i%20React");
-    expect(createAdminUsersPath(1)).toBe("/admin/users");
-    expect(createAdminUsersPath(3)).toBe("/admin/users?page=3");
-    expect(createAdminUserPath(" user/id ", 2)).toBe("/admin/users/user%2Fid?page=2");
+    expect(createAdminUsersPath()).toBe("/admin/users");
+    expect(
+      createAdminUsersPath({
+        page: 3,
+        query: " Tomasz Rak ",
+        role: "USER",
+        status: "inactive",
+      }),
+    ).toBe("/admin/users?page=3&query=Tomasz+Rak&role=USER&status=inactive");
+    expect(
+      createAdminUserPath(" user/id ", {
+        page: 2,
+        query: "tomasz",
+        role: "ADMIN",
+        status: "active",
+      }),
+    ).toBe("/admin/users/user%2Fid?page=2&query=tomasz&role=ADMIN&status=active");
 
     expect(() => createBookPath("   ")).toThrow(TypeError);
-    expect(() => createAdminUsersPath(0)).toThrow(TypeError);
+    expect(() =>
+      createAdminUsersPath({
+        ...EMPTY_ADMIN_USERS_QUERY,
+        page: 0,
+      }),
+    ).toThrow(TypeError);
     expect(() => createAdminUserPath("   ")).toThrow(TypeError);
   });
 
-  it("resolves public, authentication, profile, admin, detail and unknown routes", () => {
+  it("resolves admin list and details filters from direct URLs", () => {
+    const filters = {
+      page: 2,
+      query: "Tomasz Rak",
+      role: "USER",
+      status: "inactive",
+    } as const;
+
+    expect(
+      readBrowserRoute(
+        "/admin/users/",
+        "?page=2&query=%20Tomasz%20Rak%20&role=USER&status=inactive",
+      ),
+    ).toEqual({
+      name: "admin-users",
+      query: filters,
+    });
+
+    expect(
+      readBrowserRoute(
+        "/admin/users/user%2Fid",
+        "?page=2&query=Tomasz+Rak&role=USER&status=inactive",
+      ),
+    ).toEqual({
+      name: "admin-user-details",
+      userId: "user/id",
+      returnQuery: filters,
+    });
+  });
+
+  it("falls back safely for invalid pagination and filter values", () => {
+    expect(readBrowserRoute("/admin/users/", "?page=invalid&role=OWNER&status=disabled")).toEqual({
+      name: "admin-users",
+      query: EMPTY_ADMIN_USERS_QUERY,
+    });
+  });
+
+  it("resolves public, authentication, profile and unknown routes", () => {
     expect(readBrowserRoute("/")).toEqual({
       name: "catalog",
     });
@@ -41,19 +98,6 @@ describe("browser navigation", () => {
     });
     expect(readBrowserRoute("/profile/")).toEqual({
       name: "profile",
-    });
-    expect(readBrowserRoute("/admin/users/", "?page=2")).toEqual({
-      name: "admin-users",
-      page: 2,
-    });
-    expect(readBrowserRoute("/admin/users/", "?page=invalid")).toEqual({
-      name: "admin-users",
-      page: 1,
-    });
-    expect(readBrowserRoute("/admin/users/user%2Fid", "?page=3")).toEqual({
-      name: "admin-user-details",
-      userId: "user/id",
-      returnPage: 3,
     });
     expect(readBrowserRoute("/books/typescript%20bez%20tajemnic/")).toEqual({
       name: "book-details",
@@ -70,14 +114,17 @@ describe("browser navigation", () => {
     });
   });
 
-  it("intercepts application links with search parameters without reloading", () => {
+  it("intercepts filtered application links without reloading", () => {
     const routes: AppRoute[] = [];
     const uninstall = installBrowserNavigation((route) => {
       routes.push(route);
     });
 
     render(
-      <a href="/admin/users/user-id?page=2" data-app-link="true">
+      <a
+        href="/admin/users/user-id?page=2&query=tomasz&role=USER&status=active"
+        data-app-link="true"
+      >
         Szczegóły
       </a>,
     );
@@ -89,12 +136,17 @@ describe("browser navigation", () => {
     );
 
     expect(window.location.pathname).toBe("/admin/users/user-id");
-    expect(window.location.search).toBe("?page=2");
+    expect(window.location.search).toBe("?page=2&query=tomasz&role=USER&status=active");
     expect(routes).toEqual([
       {
         name: "admin-user-details",
         userId: "user-id",
-        returnPage: 2,
+        returnQuery: {
+          page: 2,
+          query: "tomasz",
+          role: "USER",
+          status: "active",
+        },
       },
     ]);
 
@@ -107,13 +159,18 @@ describe("browser navigation", () => {
       routes.push(route);
     });
 
-    window.history.replaceState(null, "", "/admin/users?page=4");
+    window.history.replaceState(null, "", "/admin/users?page=4&role=ADMIN");
     window.dispatchEvent(new PopStateEvent("popstate"));
 
     expect(routes).toEqual([
       {
         name: "admin-users",
-        page: 4,
+        query: {
+          page: 4,
+          query: "",
+          role: "ADMIN",
+          status: "",
+        },
       },
     ]);
 

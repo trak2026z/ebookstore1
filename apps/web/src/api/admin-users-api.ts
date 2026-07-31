@@ -8,9 +8,14 @@ import type {
 
 import { createApiClient, type JsonApiClient } from "./api-client";
 
+export type AdminUserStatusFilter = "active" | "inactive";
+
 export interface AdminUserListQuery {
   readonly page: number;
   readonly pageSize: number;
+  readonly query?: string;
+  readonly role?: AdminUserRole;
+  readonly status?: AdminUserStatusFilter;
 }
 
 export interface AdminUsersApi {
@@ -49,6 +54,18 @@ function normalizePositiveInteger(value: number, name: string): number {
   return value;
 }
 
+function appendOptionalText(
+  parameters: URLSearchParams,
+  name: string,
+  value: string | undefined,
+): void {
+  const normalizedValue = value?.trim();
+
+  if (normalizedValue) {
+    parameters.set(name, normalizedValue);
+  }
+}
+
 function createUserPath(userId: string): string {
   const normalizedUserId = normalizeRequiredText(userId, "User ID");
 
@@ -60,6 +77,10 @@ function createListPath(query: AdminUserListQuery): string {
     page: String(normalizePositiveInteger(query.page, "Page")),
     pageSize: String(normalizePositiveInteger(query.pageSize, "Page size")),
   });
+
+  appendOptionalText(parameters, "query", query.query);
+  appendOptionalText(parameters, "role", query.role);
+  appendOptionalText(parameters, "status", query.status);
 
   return `/api/v1/admin/users?${parameters.toString()}`;
 }

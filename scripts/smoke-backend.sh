@@ -270,6 +270,32 @@ elif mode == "admin_page2":
     }, payload
     assert len(payload["items"]) == 1, payload
     admin_user(payload["items"][0], email, "ADMIN", True)
+elif mode == "admin_filtered_user":
+    assert payload["pagination"] == {
+        "page": 1,
+        "pageSize": 20,
+        "total": 1,
+        "totalPages": 1,
+    }, payload
+    assert len(payload["items"]) == 1, payload
+    admin_user(payload["items"][0], email, "USER", True)
+elif mode == "admin_filtered_admin":
+    assert payload["pagination"] == {
+        "page": 1,
+        "pageSize": 20,
+        "total": 1,
+        "totalPages": 1,
+    }, payload
+    assert len(payload["items"]) == 1, payload
+    admin_user(payload["items"][0], email, "ADMIN", True)
+elif mode == "admin_filtered_empty":
+    assert payload["pagination"] == {
+        "page": 1,
+        "pageSize": 20,
+        "total": 0,
+        "totalPages": 0,
+    }, payload
+    assert payload["items"] == [], payload
 elif mode == "admin_details":
     admin_user(payload, email, "USER", True)
 elif mode == "admin_role_admin":
@@ -786,6 +812,38 @@ check_admin_pagination_pair \
   "$ADMIN_PAGE_ONE_BODY" \
   "$ADMIN_PAGE_TWO_BODY" \
   "$ADMIN_EMAIL"
+
+request_with_method \
+  "admin combined user filters" \
+  GET \
+  "/admin/users?page=1&pageSize=20&query=SMOKE.USER.01&role=USER&status=active" \
+  200 \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+check_auth_json admin_filtered_user "$FIRST_USER_EMAIL"
+
+request_with_method \
+  "admin role filter" \
+  GET \
+  "/admin/users?page=1&pageSize=20&role=ADMIN" \
+  200 \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+check_auth_json admin_filtered_admin "$ADMIN_EMAIL"
+
+request_with_method \
+  "admin inactive status filter" \
+  GET \
+  "/admin/users?page=1&pageSize=20&status=inactive" \
+  200 \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+check_auth_json admin_filtered_empty "$ADMIN_EMAIL"
+
+request_with_method \
+  "admin invalid filter" \
+  GET \
+  "/admin/users?page=1&pageSize=20&role=OWNER" \
+  400 \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+check_json validation
 
 MANAGED_USER_ID="$(
   python3 -S -c '

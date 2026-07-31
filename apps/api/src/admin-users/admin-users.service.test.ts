@@ -102,6 +102,58 @@ describe("AdminUsersService", () => {
     expect(response.items[0]).not.toHaveProperty("passwordHash");
   });
 
+  it("combines case-insensitive search, role and status filters", async () => {
+    findMany.mockResolvedValue([]);
+    count.mockResolvedValue(0);
+
+    await service.listUsers({
+      page: 2,
+      pageSize: 20,
+      query: "tomasz",
+      role: "ADMIN",
+      status: "inactive",
+    });
+
+    const where = {
+      OR: [
+        {
+          email: {
+            contains: "tomasz",
+            mode: "insensitive",
+          },
+        },
+        {
+          displayName: {
+            contains: "tomasz",
+            mode: "insensitive",
+          },
+        },
+      ],
+      role: "ADMIN",
+      isActive: false,
+    };
+
+    expect(findMany).toHaveBeenCalledWith({
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+      skip: 20,
+      take: 20,
+      where,
+    });
+
+    expect(count).toHaveBeenCalledWith({
+      where,
+    });
+  });
+
   it("returns an empty page with correct pagination metadata", async () => {
     findMany.mockResolvedValue([]);
     count.mockResolvedValue(0);

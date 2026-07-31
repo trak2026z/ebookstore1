@@ -65,6 +65,7 @@ function MainContent({
   adminUsers,
   authSession,
   onAuthenticated,
+  onNavigate,
   onSessionRejected,
 }: {
   readonly route: AppRoute;
@@ -74,6 +75,7 @@ function MainContent({
   readonly adminUsers: AdminUsersApi;
   readonly authSession: AuthSession | null;
   readonly onAuthenticated: (session: AuthSession) => void;
+  readonly onNavigate: (path: string) => void;
   readonly onSessionRejected: () => void;
 }) {
   if (route.name === "book-details") {
@@ -113,7 +115,8 @@ function MainContent({
       <AdminUsersPage
         accessToken={authSession.accessToken}
         adminUsers={adminUsers}
-        page={route.page}
+        routeQuery={route.query}
+        onNavigate={onNavigate}
         onSessionRejected={onSessionRejected}
       />
     ) : (
@@ -122,7 +125,7 @@ function MainContent({
         adminUsers={adminUsers}
         currentUserId={authSession.user.id}
         userId={route.userId}
-        returnPage={route.returnPage}
+        returnQuery={route.returnQuery}
         onSessionRejected={onSessionRejected}
       />
     );
@@ -152,18 +155,27 @@ export default function App({
 
   useEffect(() => installBrowserNavigation(setRoute), []);
 
-  const navigateToCatalog = useCallback((): void => {
+  const navigateTo = useCallback((path: string): void => {
+    const nextUrl = new URL(path, window.location.origin);
+
+    if (nextUrl.origin !== window.location.origin) {
+      throw new TypeError("Application navigation must stay on the current origin.");
+    }
+
+    const nextLocation = `${nextUrl.pathname}` + `${nextUrl.search}` + `${nextUrl.hash}`;
     const currentLocation =
       `${window.location.pathname}` + `${window.location.search}` + `${window.location.hash}`;
 
-    if (currentLocation !== "/") {
-      window.history.pushState(null, "", "/");
+    if (nextLocation !== currentLocation) {
+      window.history.pushState(null, "", nextLocation);
     }
 
-    setRoute({
-      name: "catalog",
-    });
+    setRoute(readBrowserRoute());
   }, []);
+
+  const navigateToCatalog = useCallback((): void => {
+    navigateTo("/");
+  }, [navigateTo]);
 
   const clearAuthSession = useCallback((): void => {
     setAuthSession(null);
@@ -251,6 +263,7 @@ export default function App({
           adminUsers={adminUsers}
           authSession={authSession}
           onAuthenticated={handleAuthenticated}
+          onNavigate={navigateTo}
           onSessionRejected={clearAuthSession}
         />
       </main>
