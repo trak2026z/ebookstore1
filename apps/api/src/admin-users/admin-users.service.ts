@@ -7,10 +7,14 @@ import type {
 } from "@ebookstore/contracts";
 
 import { DatabaseService } from "../database/database.service";
+import type { Prisma } from "../generated/prisma/client.js";
 
 export interface ListAdminUsersInput {
   readonly page: number;
   readonly pageSize: number;
+  readonly query?: string;
+  readonly role?: AdminUserRole;
+  readonly status?: "active" | "inactive";
 }
 
 export interface UpdateAdminUserRoleInput {
@@ -57,6 +61,33 @@ function toAdminUserListItem(user: SelectedAdminUser): AdminUserListItem {
   };
 }
 
+function createAdminUserWhere(input: ListAdminUsersInput): Prisma.UserWhereInput | undefined {
+  const where: Prisma.UserWhereInput = {
+    ...(input.query === undefined
+      ? {}
+      : {
+          OR: [
+            {
+              email: {
+                contains: input.query,
+                mode: "insensitive",
+              },
+            },
+            {
+              displayName: {
+                contains: input.query,
+                mode: "insensitive",
+              },
+            },
+          ],
+        }),
+    ...(input.role === undefined ? {} : { role: input.role }),
+    ...(input.status === undefined ? {} : { isActive: input.status === "active" }),
+  };
+
+  return Object.keys(where).length === 0 ? undefined : where;
+}
+
 @Injectable()
 export class AdminUsersService {
   constructor(
@@ -66,6 +97,7 @@ export class AdminUsersService {
 
   async listUsers(input: ListAdminUsersInput): Promise<AdminUserListResponse> {
     const skip = (input.page - 1) * input.pageSize;
+    const where = createAdminUserWhere(input);
 
     const [users, total] = await Promise.all([
       this.database.prisma.user.findMany({
@@ -73,8 +105,11 @@ export class AdminUsersService {
         orderBy: [{ createdAt: "desc" }, { id: "asc" }],
         skip,
         take: input.pageSize,
+        ...(where === undefined ? {} : { where }),
       }),
-      this.database.prisma.user.count(),
+      where === undefined
+        ? this.database.prisma.user.count()
+        : this.database.prisma.user.count({ where }),
     ]);
 
     return {

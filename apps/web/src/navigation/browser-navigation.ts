@@ -1,3 +1,13 @@
+export type AdminUserRoleFilter = "" | "USER" | "ADMIN";
+export type AdminUserStatusFilter = "" | "active" | "inactive";
+
+export interface AdminUsersRouteQuery {
+  readonly page: number;
+  readonly query: string;
+  readonly role: AdminUserRoleFilter;
+  readonly status: AdminUserStatusFilter;
+}
+
 export type AppRoute =
   | { readonly name: "catalog" }
   | { readonly name: "login" }
@@ -5,12 +15,12 @@ export type AppRoute =
   | { readonly name: "profile" }
   | {
       readonly name: "admin-users";
-      readonly page: number;
+      readonly query: AdminUsersRouteQuery;
     }
   | {
       readonly name: "admin-user-details";
       readonly userId: string;
-      readonly returnPage: number;
+      readonly returnQuery: AdminUsersRouteQuery;
     }
   | {
       readonly name: "book-details";
@@ -20,6 +30,13 @@ export type AppRoute =
 
 const APP_LINK_SELECTOR = 'a[data-app-link="true"]';
 
+export const EMPTY_ADMIN_USERS_QUERY: AdminUsersRouteQuery = {
+  page: 1,
+  query: "",
+  role: "",
+  status: "",
+};
+
 function normalizePositivePage(page: number): number {
   if (!Number.isSafeInteger(page) || page < 1) {
     throw new TypeError("Page must be a positive integer.");
@@ -28,8 +45,24 @@ function normalizePositivePage(page: number): number {
   return page;
 }
 
-function readPage(search: string): number {
-  const value = new URLSearchParams(search).get("page");
+function normalizeRole(role: AdminUserRoleFilter): AdminUserRoleFilter {
+  if (role !== "" && role !== "USER" && role !== "ADMIN") {
+    throw new TypeError("Role filter is invalid.");
+  }
+
+  return role;
+}
+
+function normalizeStatus(status: AdminUserStatusFilter): AdminUserStatusFilter {
+  if (status !== "" && status !== "active" && status !== "inactive") {
+    throw new TypeError("Status filter is invalid.");
+  }
+
+  return status;
+}
+
+function readPage(parameters: URLSearchParams): number {
+  const value = parameters.get("page");
 
   if (!value || !/^\d+$/.test(value)) {
     return 1;
@@ -38,6 +71,29 @@ function readPage(search: string): number {
   const page = Number(value);
 
   return Number.isSafeInteger(page) && page >= 1 ? page : 1;
+}
+
+function readRole(parameters: URLSearchParams): AdminUserRoleFilter {
+  const value = parameters.get("role");
+
+  return value === "USER" || value === "ADMIN" ? value : "";
+}
+
+function readStatus(parameters: URLSearchParams): AdminUserStatusFilter {
+  const value = parameters.get("status");
+
+  return value === "active" || value === "inactive" ? value : "";
+}
+
+function readAdminUsersQuery(search: string): AdminUsersRouteQuery {
+  const parameters = new URLSearchParams(search);
+
+  return {
+    page: readPage(parameters),
+    query: parameters.get("query")?.trim() ?? "",
+    role: readRole(parameters),
+    status: readStatus(parameters),
+  };
 }
 
 function decodeRequiredPathSegment(value: string): string | null {
@@ -58,20 +114,47 @@ export function createBookPath(slug: string): string {
   return `/books/${encodeURIComponent(normalizedSlug)}`;
 }
 
-export function createAdminUsersPath(page: number): string {
-  const normalizedPage = normalizePositivePage(page);
+export function createAdminUsersPath(
+  query: AdminUsersRouteQuery = EMPTY_ADMIN_USERS_QUERY,
+): string {
+  const parameters = new URLSearchParams();
+  const page = normalizePositivePage(query.page);
+  const normalizedQuery = query.query.trim();
+  const role = normalizeRole(query.role);
+  const status = normalizeStatus(query.status);
 
-  return normalizedPage === 1 ? "/admin/users" : `/admin/users?page=${normalizedPage}`;
+  if (page > 1) {
+    parameters.set("page", String(page));
+  }
+
+  if (normalizedQuery) {
+    parameters.set("query", normalizedQuery);
+  }
+
+  if (role) {
+    parameters.set("role", role);
+  }
+
+  if (status) {
+    parameters.set("status", status);
+  }
+
+  const queryString = parameters.toString();
+
+  return queryString ? `/admin/users?${queryString}` : "/admin/users";
 }
 
-export function createAdminUserPath(userId: string, returnPage = 1): string {
+export function createAdminUserPath(
+  userId: string,
+  returnQuery: AdminUsersRouteQuery = EMPTY_ADMIN_USERS_QUERY,
+): string {
   const normalizedUserId = userId.trim();
 
   if (!normalizedUserId) {
     throw new TypeError("User ID must not be empty.");
   }
 
-  const listPath = createAdminUsersPath(returnPage);
+  const listPath = createAdminUsersPath(returnQuery);
   const search = listPath.slice("/admin/users".length);
 
   return `/admin/users/${encodeURIComponent(normalizedUserId)}${search}`;
@@ -110,7 +193,7 @@ export function readBrowserRoute(
   if (normalizedPathname === "/admin/users") {
     return {
       name: "admin-users",
-      page: readPage(search),
+      query: readAdminUsersQuery(search),
     };
   }
 
@@ -123,7 +206,7 @@ export function readBrowserRoute(
       ? {
           name: "admin-user-details",
           userId,
-          returnPage: readPage(search),
+          returnQuery: readAdminUsersQuery(search),
         }
       : {
           name: "not-found",

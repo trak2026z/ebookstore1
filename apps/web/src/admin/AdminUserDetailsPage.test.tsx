@@ -7,6 +7,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminUsersApi } from "../api/admin-users-api";
 import { ApiClientError } from "../api/api-client";
+import {
+  EMPTY_ADMIN_USERS_QUERY,
+  type AdminUsersRouteQuery,
+} from "../navigation/browser-navigation";
 import { AdminUserDetailsPage } from "./AdminUserDetailsPage";
 
 const user: AdminUserListItem = {
@@ -52,14 +56,17 @@ function renderPage({
   updateUserRole = unexpectedRoleUpdate,
   updateUserStatus = unexpectedStatusUpdate,
   currentUserId = "admin-actor",
-  returnPage = 2,
+  returnQuery = {
+    ...EMPTY_ADMIN_USERS_QUERY,
+    page: 2,
+  },
   onSessionRejected = vi.fn(),
 }: {
   readonly getUser: AdminUsersApi["getUser"];
   readonly updateUserRole?: AdminUsersApi["updateUserRole"];
   readonly updateUserStatus?: AdminUsersApi["updateUserStatus"];
   readonly currentUserId?: string;
-  readonly returnPage?: number;
+  readonly returnQuery?: AdminUsersRouteQuery;
   readonly onSessionRejected?: () => void;
 }) {
   return render(
@@ -72,7 +79,7 @@ function renderPage({
       })}
       currentUserId={currentUserId}
       userId={user.id}
-      returnPage={returnPage}
+      returnQuery={returnQuery}
       onSessionRejected={onSessionRejected}
     />,
   );
@@ -94,12 +101,17 @@ describe("AdminUserDetailsPage", () => {
     expect(getUser).toHaveBeenCalledWith("signed.jwt.token", user.id);
   });
 
-  it("renders user details and preserves the return page", async () => {
+  it("renders user details and preserves return filters", async () => {
     const getUser = vi.fn<AdminUsersApi["getUser"]>().mockResolvedValue(user);
 
     const { container } = renderPage({
       getUser,
-      returnPage: 3,
+      returnQuery: {
+        page: 3,
+        query: "tomasz",
+        role: "USER",
+        status: "active",
+      },
     });
 
     expect(
@@ -119,7 +131,7 @@ describe("AdminUserDetailsPage", () => {
       screen.getByRole("link", {
         name: "Wróć do listy użytkowników",
       }),
-    ).toHaveAttribute("href", "/admin/users?page=3");
+    ).toHaveAttribute("href", "/admin/users?page=3&query=tomasz&role=USER&status=active");
 
     const dates = Array.from(container.querySelectorAll("time"));
 

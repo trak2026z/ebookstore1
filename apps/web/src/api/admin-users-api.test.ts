@@ -76,7 +76,7 @@ function createClient() {
 }
 
 describe("createAdminUsersApi", () => {
-  it("lists users with stable pagination and a normalized Bearer token", async () => {
+  it("lists users with pagination, normalized filters and a Bearer token", async () => {
     const { client, calls } = createClient();
     const api = createAdminUsersApi(client);
 
@@ -84,18 +84,35 @@ describe("createAdminUsersApi", () => {
       api.listUsers(" admin-token ", {
         page: 2,
         pageSize: 20,
+        query: "  Tomasz Rak  ",
+        role: "USER",
+        status: "inactive",
       }),
     ).resolves.toEqual(listResponse);
 
     expect(calls).toEqual([
       {
         method: "GET",
-        path: "/api/v1/admin/users?page=2&pageSize=20",
+        path:
+          "/api/v1/admin/users?page=2&pageSize=20" + "&query=Tomasz+Rak&role=USER&status=inactive",
         options: {
           accessToken: "admin-token",
         },
       },
     ]);
+  });
+
+  it("omits empty optional filters from the request URL", async () => {
+    const { client, calls } = createClient();
+    const api = createAdminUsersApi(client);
+
+    await api.listUsers("admin-token", {
+      page: 1,
+      pageSize: 20,
+      query: "   ",
+    });
+
+    expect(calls[0]?.path).toBe("/api/v1/admin/users?page=1&pageSize=20");
   });
 
   it("gets a user through an encoded path segment", async () => {
@@ -150,25 +167,20 @@ describe("createAdminUsersApi", () => {
   it("rejects invalid input before invoking the HTTP client", async () => {
     const get = vi.fn();
     const patch = vi.fn();
-
     const client: JsonApiClient = {
       async get<T>(path: string, options?: ApiRequestOptions): Promise<T> {
         get(path, options);
-
         throw new Error("Unexpected GET request.");
       },
-
       async post<TResponse>(): Promise<TResponse> {
         throw new Error("Unexpected POST request.");
       },
-
       async patch<TResponse, TBody>(
         path: string,
         body: TBody,
         options?: ApiRequestOptions,
       ): Promise<TResponse> {
         patch(path, body, options);
-
         throw new Error("Unexpected PATCH request.");
       },
     };

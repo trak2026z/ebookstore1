@@ -42,6 +42,9 @@ export class AdminUsersController {
     return this.adminUsers.listUsers({
       page: query.page,
       pageSize: query.pageSize,
+      ...(query.query === undefined ? {} : { query: query.query }),
+      ...(query.role === undefined ? {} : { role: query.role }),
+      ...(query.status === undefined ? {} : { status: query.status }),
     });
   }
 

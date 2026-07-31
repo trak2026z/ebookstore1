@@ -11,7 +11,7 @@ import type {
   PublicBookListItem,
   PublicBookListResponse,
 } from "@ebookstore/contracts";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App, { type AppCatalogApi } from "./App";
@@ -379,6 +379,80 @@ describe("App", () => {
     expect(listUsers).toHaveBeenCalledWith("signed.jwt.token", {
       page: 1,
       pageSize: 20,
+    });
+  });
+
+  it("applies admin user filters through History API navigation", async () => {
+    const adminUser: AuthUserResponse = {
+      ...authUser,
+      email: "admin@example.com",
+      role: "ADMIN",
+    };
+    const response: AdminUserListResponse = {
+      items: [],
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        total: 0,
+        totalPages: 0,
+      },
+    };
+    const listUsers = vi.fn<AdminUsersApi["listUsers"]>().mockResolvedValue(response);
+
+    window.history.replaceState(null, "", "/login");
+
+    render(
+      <App
+        catalog={createCatalog()}
+        auth={createAuth(adminUser)}
+        adminUsers={createAdminUsers(listUsers)}
+      />,
+    );
+
+    submitLogin();
+
+    fireEvent.click(
+      await screen.findByRole("link", {
+        name: "Użytkownicy",
+      }),
+    );
+
+    await screen.findByRole("form", {
+      name: "Filtry użytkowników",
+    });
+
+    fireEvent.change(screen.getByLabelText("Szukaj"), {
+      target: {
+        value: "managed",
+      },
+    });
+    fireEvent.change(screen.getByLabelText("Rola"), {
+      target: {
+        value: "USER",
+      },
+    });
+    fireEvent.change(screen.getByLabelText("Status"), {
+      target: {
+        value: "active",
+      },
+    });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Zastosuj filtry",
+      }),
+    );
+
+    expect(window.location.pathname).toBe("/admin/users");
+    expect(window.location.search).toBe("?query=managed&role=USER&status=active");
+
+    await waitFor(() => {
+      expect(listUsers).toHaveBeenLastCalledWith("signed.jwt.token", {
+        page: 1,
+        pageSize: 20,
+        query: "managed",
+        role: "USER",
+        status: "active",
+      });
     });
   });
 

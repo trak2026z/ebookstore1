@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { AdminUsersApi } from "../api/admin-users-api";
 import { ApiClientError } from "../api/api-client";
-import { createAdminUsersPath } from "../navigation/browser-navigation";
+import { createAdminUsersPath, type AdminUsersRouteQuery } from "../navigation/browser-navigation";
 import {
   AdminUserManagement,
   type AdminUserActionState,
@@ -51,7 +51,7 @@ export interface AdminUserDetailsPageProps {
   readonly adminUsers: AdminUsersApi;
   readonly currentUserId: string;
   readonly userId: string;
-  readonly returnPage: number;
+  readonly returnQuery: AdminUsersRouteQuery;
   readonly onSessionRejected: () => void;
 }
 
@@ -89,7 +89,7 @@ function actionFailureMessage(action: PendingAdminUserAction, error: unknown): s
     : ADMIN_USER_STATUS_UPDATE_FAILED_MESSAGE;
 }
 
-function AdminUserNotFound({ returnPage }: { readonly returnPage: number }) {
+function AdminUserNotFound({ returnQuery }: { readonly returnQuery: AdminUsersRouteQuery }) {
   return (
     <section className="admin-page shell" aria-labelledby="admin-user-not-found-title">
       <div className="admin-card admin-card--message">
@@ -102,7 +102,7 @@ function AdminUserNotFound({ returnPage }: { readonly returnPage: number }) {
         </p>
 
         <div className="admin-actions">
-          <a href={createAdminUsersPath(returnPage)} data-app-link="true">
+          <a href={createAdminUsersPath(returnQuery)} data-app-link="true">
             Wróć do listy użytkowników
           </a>
         </div>
@@ -155,7 +155,7 @@ export function AdminUserDetailsPage({
   adminUsers,
   currentUserId,
   userId,
-  returnPage,
+  returnQuery,
   onSessionRejected,
 }: AdminUserDetailsPageProps) {
   const isMounted = useRef(true);
@@ -337,7 +337,7 @@ export function AdminUserDetailsPage({
   }
 
   if (state.status === "not-found") {
-    return <AdminUserNotFound returnPage={returnPage} />;
+    return <AdminUserNotFound returnQuery={returnQuery} />;
   }
 
   return (
@@ -395,7 +395,7 @@ export function AdminUserDetailsPage({
         )}
 
         <div className="admin-actions">
-          <a href={createAdminUsersPath(returnPage)} data-app-link="true">
+          <a href={createAdminUsersPath(returnQuery)} data-app-link="true">
             Wróć do listy użytkowników
           </a>
 

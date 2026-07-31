@@ -146,7 +146,7 @@ describe("AdminUsersController", () => {
     });
   });
 
-  it("transforms valid pagination query parameters", async () => {
+  it("transforms pagination, search, role and status query parameters", async () => {
     adminUsersService.listUsers.mockResolvedValue({
       items: [],
       pagination: {
@@ -162,6 +162,9 @@ describe("AdminUsersController", () => {
       .query({
         page: "2",
         pageSize: "5",
+        query: "  tomasz@example.com  ",
+        role: "USER",
+        status: "inactive",
       })
       .set("Authorization", "Bearer admin-token")
       .expect(200);
@@ -169,6 +172,9 @@ describe("AdminUsersController", () => {
     expect(adminUsersService.listUsers).toHaveBeenCalledWith({
       page: 2,
       pageSize: 5,
+      query: "tomasz@example.com",
+      role: "USER",
+      status: "inactive",
     });
   });
 
@@ -179,6 +185,32 @@ describe("AdminUsersController", () => {
         page: "0",
         pageSize: "101",
       })
+      .set("Authorization", "Bearer admin-token")
+      .expect(400);
+
+    expect(adminUsersService.listUsers).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      query: {
+        role: "OWNER",
+      },
+    },
+    {
+      query: {
+        status: "disabled",
+      },
+    },
+    {
+      query: {
+        query: "x".repeat(101),
+      },
+    },
+  ])("rejects invalid admin user filters: $query", async ({ query }) => {
+    await request(app!.getHttpServer())
+      .get("/api/v1/admin/users")
+      .query(query)
       .set("Authorization", "Bearer admin-token")
       .expect(400);
 

@@ -2,11 +2,15 @@
 
 import "@testing-library/jest-dom/vitest";
 import type { AdminUserListItem, AdminUserListResponse } from "@ebookstore/contracts";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminUsersApi } from "../api/admin-users-api";
 import { ApiClientError } from "../api/api-client";
+import {
+  EMPTY_ADMIN_USERS_QUERY,
+  type AdminUsersRouteQuery,
+} from "../navigation/browser-navigation";
 import { AdminUsersPage } from "./AdminUsersPage";
 
 const user: AdminUserListItem = {
@@ -55,18 +59,21 @@ function createApi(listUsers: AdminUsersApi["listUsers"]): AdminUsersApi {
 
 function renderPage({
   listUsers,
-  page = 1,
+  routeQuery = EMPTY_ADMIN_USERS_QUERY,
+  onNavigate = vi.fn(),
   onSessionRejected = vi.fn(),
 }: {
   readonly listUsers: AdminUsersApi["listUsers"];
-  readonly page?: number;
+  readonly routeQuery?: AdminUsersRouteQuery;
+  readonly onNavigate?: (path: string) => void;
   readonly onSessionRejected?: () => void;
 }) {
   return render(
     <AdminUsersPage
       accessToken="signed.jwt.token"
       adminUsers={createApi(listUsers)}
-      page={page}
+      routeQuery={routeQuery}
+      onNavigate={onNavigate}
       onSessionRejected={onSessionRejected}
     />,
   );
@@ -75,14 +82,19 @@ function renderPage({
 afterEach(cleanup);
 
 describe("AdminUsersPage", () => {
-  it("loads the selected page with the in-memory Bearer token", () => {
+  it("loads the selected page and filters with the in-memory Bearer token", () => {
     const listUsers = vi
       .fn<AdminUsersApi["listUsers"]>()
       .mockReturnValue(new Promise<AdminUserListResponse>(() => undefined));
 
     renderPage({
       listUsers,
-      page: 3,
+      routeQuery: {
+        page: 3,
+        query: "tomasz",
+        role: "USER",
+        status: "active",
+      },
     });
 
     expect(screen.getByRole("status")).toHaveTextContent("Pobieranie użytkowników…");
@@ -90,10 +102,13 @@ describe("AdminUsersPage", () => {
     expect(listUsers).toHaveBeenCalledWith("signed.jwt.token", {
       page: 3,
       pageSize: 20,
+      query: "tomasz",
+      role: "USER",
+      status: "active",
     });
   });
 
-  it("renders users and links their details to the current page", async () => {
+  it("renders users and preserves filters in detail links", async () => {
     const listUsers = vi.fn<AdminUsersApi["listUsers"]>().mockResolvedValue(
       createResponse(
         [
@@ -117,28 +132,35 @@ describe("AdminUsersPage", () => {
 
     const { container } = renderPage({
       listUsers,
-      page: 2,
+      routeQuery: {
+        page: 2,
+        query: "example",
+        role: "USER",
+        status: "active",
+      },
     });
 
-    expect(
-      await screen.findByRole("table", {
-        name: "Lista użytkowników sklepu",
-      }),
-    ).toBeInTheDocument();
+    const table = await screen.findByRole("table", {
+      name: "Lista użytkowników sklepu",
+    });
 
-    expect(screen.getByText("Tomasz")).toBeInTheDocument();
-    expect(screen.getByText("Nie ustawiono")).toBeInTheDocument();
-    expect(screen.getByText("Użytkownik")).toBeInTheDocument();
-    expect(screen.getByText("Administrator")).toBeInTheDocument();
-    expect(screen.getByText("Aktywne")).toBeInTheDocument();
-    expect(screen.getByText("Nieaktywne")).toBeInTheDocument();
+    expect(table).toBeInTheDocument();
+    expect(within(table).getByText("Tomasz")).toBeInTheDocument();
+    expect(within(table).getByText("Nie ustawiono")).toBeInTheDocument();
+    expect(within(table).getByText("Użytkownik")).toBeInTheDocument();
+    expect(within(table).getByText("Administrator")).toBeInTheDocument();
+    expect(within(table).getByText("Aktywne")).toBeInTheDocument();
+    expect(within(table).getByText("Nieaktywne")).toBeInTheDocument();
     expect(screen.getByText("Wyświetlono 2 z 42 kont.")).toBeInTheDocument();
 
     expect(
       screen.getByRole("link", {
         name: "Szczegóły: user@example.com",
       }),
-    ).toHaveAttribute("href", `/admin/users/${user.id}?page=2`);
+    ).toHaveAttribute(
+      "href",
+      `/admin/users/${user.id}?page=2&query=example&role=USER&status=active`,
+    );
 
     const dates = Array.from(container.querySelectorAll("time"));
 
@@ -146,7 +168,7 @@ describe("AdminUsersPage", () => {
     expect(dates[0]).toHaveAttribute("datetime", user.createdAt);
   });
 
-  it("renders previous and next navigation from response pagination", async () => {
+  it("preserves active filters in previous and next links", async () => {
     const listUsers = vi.fn<AdminUsersApi["listUsers"]>().mockResolvedValue(
       createResponse([user], {
         page: 2,
@@ -157,7 +179,12 @@ describe("AdminUsersPage", () => {
 
     renderPage({
       listUsers,
-      page: 2,
+      routeQuery: {
+        page: 2,
+        query: "tomasz",
+        role: "ADMIN",
+        status: "inactive",
+      },
     });
 
     expect(
@@ -170,18 +197,106 @@ describe("AdminUsersPage", () => {
       screen.getByRole("link", {
         name: "Poprzednia",
       }),
-    ).toHaveAttribute("href", "/admin/users");
+    ).toHaveAttribute("href", "/admin/users?query=tomasz&role=ADMIN&status=inactive");
 
     expect(
       screen.getByRole("link", {
         name: "Następna",
       }),
-    ).toHaveAttribute("href", "/admin/users?page=3");
+    ).toHaveAttribute("href", "/admin/users?page=3&query=tomasz&role=ADMIN&status=inactive");
 
     expect(screen.getByText("Strona 2 z 3")).toBeInTheDocument();
   });
 
-  it("renders an empty first page with disabled pagination", async () => {
+  it("applies normalized filters and resets pagination to page one", async () => {
+    const listUsers = vi.fn<AdminUsersApi["listUsers"]>().mockResolvedValue(createResponse([user]));
+    const onNavigate = vi.fn();
+
+    renderPage({
+      listUsers,
+      routeQuery: {
+        ...EMPTY_ADMIN_USERS_QUERY,
+        page: 4,
+      },
+      onNavigate,
+    });
+
+    await screen.findByText("user@example.com");
+
+    fireEvent.change(screen.getByLabelText("Szukaj"), {
+      target: {
+        value: "  Tomasz Rak  ",
+      },
+    });
+    fireEvent.change(screen.getByLabelText("Rola"), {
+      target: {
+        value: "USER",
+      },
+    });
+    fireEvent.change(screen.getByLabelText("Status"), {
+      target: {
+        value: "inactive",
+      },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Zastosuj filtry",
+      }),
+    );
+
+    expect(onNavigate).toHaveBeenCalledWith(
+      "/admin/users?query=Tomasz+Rak&role=USER&status=inactive",
+    );
+  });
+
+  it("clears draft and applied filters", async () => {
+    const listUsers = vi.fn<AdminUsersApi["listUsers"]>().mockResolvedValue(createResponse([user]));
+    const onNavigate = vi.fn();
+
+    renderPage({
+      listUsers,
+      routeQuery: {
+        page: 2,
+        query: "tomasz",
+        role: "ADMIN",
+        status: "active",
+      },
+      onNavigate,
+    });
+
+    await screen.findByText("user@example.com");
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Wyczyść filtry",
+      }),
+    );
+
+    expect(screen.getByLabelText("Szukaj")).toHaveValue("");
+    expect(screen.getByLabelText("Rola")).toHaveValue("");
+    expect(screen.getByLabelText("Status")).toHaveValue("");
+    expect(onNavigate).toHaveBeenCalledWith("/admin/users");
+  });
+
+  it("renders a distinct empty state for active filters", async () => {
+    const listUsers = vi.fn<AdminUsersApi["listUsers"]>().mockResolvedValue(createResponse([]));
+
+    renderPage({
+      listUsers,
+      routeQuery: {
+        ...EMPTY_ADMIN_USERS_QUERY,
+        query: "missing",
+      },
+    });
+
+    expect(
+      await screen.findByText("Brak użytkowników spełniających wybrane kryteria."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("renders an empty unfiltered page with disabled pagination", async () => {
     const listUsers = vi.fn<AdminUsersApi["listUsers"]>().mockResolvedValue(createResponse([]));
 
     renderPage({
