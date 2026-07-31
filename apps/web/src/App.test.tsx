@@ -2,6 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import type {
+  AdminUserListResponse,
   AuthUserResponse,
   LoginRequest,
   LoginResponse,
@@ -10,9 +11,10 @@ import type {
   PublicBookListResponse,
 } from "@ebookstore/contracts";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App, { type AppCatalogApi } from "./App";
+import type { AdminUsersApi } from "./api/admin-users-api";
 import type { RegistrationApi } from "./auth/RegisterPage";
 
 const bookListItem: PublicBookListItem = {
@@ -86,6 +88,59 @@ function createCatalog(): AppCatalogApi {
   };
 }
 
+function createAdminUsers(listUsers: AdminUsersApi["listUsers"]): AdminUsersApi {
+  return {
+    listUsers,
+
+    async getUser() {
+      throw new Error("Unexpected getUser request.");
+    },
+
+    async updateUserRole() {
+      throw new Error("Unexpected updateUserRole request.");
+    },
+
+    async updateUserStatus() {
+      throw new Error("Unexpected updateUserStatus request.");
+    },
+  };
+}
+
+function createAuth(user: AuthUserResponse): RegistrationApi {
+  return {
+    async register() {
+      return user;
+    },
+
+    async login() {
+      return {
+        ...loginResponse,
+        user,
+      };
+    },
+  };
+}
+
+function submitLogin(): void {
+  fireEvent.change(screen.getByLabelText("Adres e-mail"), {
+    target: {
+      value: " user@example.com ",
+    },
+  });
+
+  fireEvent.change(screen.getByLabelText("Hasło"), {
+    target: {
+      value: "Correct-Horse-42",
+    },
+  });
+
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Zaloguj się",
+    }),
+  );
+}
+
 afterEach(() => {
   cleanup();
 
@@ -111,7 +166,7 @@ describe("App", () => {
     render(<App catalog={catalog} />);
 
     expect(
-      screen.getByRole("heading", {
+      await screen.findByRole("heading", {
         level: 1,
         name: "Ebookstore",
       }),
@@ -206,6 +261,122 @@ describe("App", () => {
         name: "Zaloguj się",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("blocks an anonymous admin route without calling the API", () => {
+    const listUsers = vi.fn<AdminUsersApi["listUsers"]>();
+
+    window.history.replaceState(null, "", "/admin/users");
+
+    render(<App catalog={createCatalog()} adminUsers={createAdminUsers(listUsers)} />);
+
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "Panel administratora wymaga logowania",
+      }),
+    ).toBeInTheDocument();
+
+    expect(listUsers).not.toHaveBeenCalled();
+  });
+
+  it("blocks a regular user without calling the admin API", async () => {
+    const listUsers = vi.fn<AdminUsersApi["listUsers"]>();
+
+    window.history.replaceState(null, "", "/login");
+
+    render(
+      <App
+        catalog={createCatalog()}
+        auth={createAuth(authUser)}
+        adminUsers={createAdminUsers(listUsers)}
+      />,
+    );
+
+    submitLogin();
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Ebookstore",
+      }),
+    ).toBeInTheDocument();
+
+    window.history.pushState(null, "", "/admin/users");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Brak dostępu do panelu administratora",
+      }),
+    ).toBeInTheDocument();
+
+    expect(listUsers).not.toHaveBeenCalled();
+  });
+
+  it("lets an administrator open the protected users list", async () => {
+    const adminUser: AuthUserResponse = {
+      ...authUser,
+      email: "admin@example.com",
+      role: "ADMIN",
+    };
+
+    const response: AdminUserListResponse = {
+      items: [
+        {
+          id: "managed-user",
+          email: "managed@example.com",
+          displayName: "Managed User",
+          role: "USER",
+          isActive: true,
+          createdAt: "2026-07-22T10:00:00.000Z",
+          updatedAt: "2026-07-23T10:00:00.000Z",
+        },
+      ],
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    };
+
+    const listUsers = vi.fn<AdminUsersApi["listUsers"]>().mockResolvedValue(response);
+
+    window.history.replaceState(null, "", "/login");
+
+    render(
+      <App
+        catalog={createCatalog()}
+        auth={createAuth(adminUser)}
+        adminUsers={createAdminUsers(listUsers)}
+      />,
+    );
+
+    submitLogin();
+
+    fireEvent.click(
+      await screen.findByRole("link", {
+        name: "Użytkownicy",
+      }),
+    );
+
+    expect(window.location.pathname).toBe("/admin/users");
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Użytkownicy",
+      }),
+    ).toBeInTheDocument();
+
+    expect(await screen.findByText("managed@example.com")).toBeInTheDocument();
+
+    expect(listUsers).toHaveBeenCalledWith("signed.jwt.token", {
+      page: 1,
+      pageSize: 20,
+    });
   });
 
   it("stores a successful session in memory and returns to the catalog", async () => {
