@@ -1003,3 +1003,104 @@ h1 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.admin-user-management {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid #dfe5ef;
+  border-radius: 0.75rem;
+  background: #f7f9fc;
+}
+
+.admin-user-management h2,
+.admin-user-management h3,
+.admin-user-management p {
+  margin-top: 0;
+}
+
+.admin-user-management h2 {
+  font-size: 1.5rem;
+}
+
+.admin-user-management__summary {
+  color: #526079;
+}
+
+.admin-user-management__self-notice {
+  padding: 0.85rem 1rem;
+  border: 1px solid #d7bd77;
+  border-radius: 0.65rem;
+  background: #fff8df;
+  color: #6b5218;
+}
+
+.admin-user-management__controls,
+.admin-user-confirmation__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.admin-user-management__controls button,
+.admin-user-confirmation__actions button {
+  min-height: 2.75rem;
+  padding-inline: 1rem;
+  border: 1px solid #315fd4;
+  border-radius: 0.65rem;
+  background: #315fd4;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-user-management__controls button:disabled {
+  border-color: #c9d4e5;
+  background: #e8edf5;
+  color: #66738a;
+  cursor: not-allowed;
+}
+
+.admin-user-management__controls button:last-child {
+  border-color: #8f2424;
+  background: white;
+  color: #8f2424;
+}
+
+.admin-user-management__controls button:last-child:disabled {
+  border-color: #c9d4e5;
+  background: #e8edf5;
+  color: #66738a;
+}
+
+.admin-user-confirmation {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #d7bd77;
+  border-radius: 0.65rem;
+  background: #fff8df;
+}
+
+.admin-user-confirmation__actions button:last-child {
+  border-color: #aebbd0;
+  background: white;
+  color: #315fd4;
+}
+
+.admin-user-management__feedback {
+  margin: 1rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: 0.65rem;
+}
+
+.admin-user-management__feedback--success {
+  border: 1px solid #9dceb2;
+  background: #e8f7ef;
+  color: #17633b;
+}
+
+.admin-user-management__feedback--error {
+  border: 1px solid #d9a7a7;
+  background: #fff7f7;
+  color: #8f2424;
+}

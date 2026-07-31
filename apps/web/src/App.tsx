@@ -120,6 +120,7 @@ function MainContent({
       <AdminUserDetailsPage
         accessToken={authSession.accessToken}
         adminUsers={adminUsers}
+        currentUserId={authSession.user.id}
         userId={route.userId}
         returnPage={route.returnPage}
         onSessionRejected={onSessionRejected}

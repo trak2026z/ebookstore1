@@ -320,6 +320,7 @@ describe("AdminUsersController", () => {
       .expect(404);
 
     expect(adminUsersService.updateUserRole).toHaveBeenCalledWith({
+      actorUserId: "admin-id",
       userId: USER_ID,
       role: "ADMIN",
     });
@@ -339,6 +340,7 @@ describe("AdminUsersController", () => {
       .expect(409);
 
     expect(adminUsersService.updateUserRole).toHaveBeenCalledWith({
+      actorUserId: "admin-id",
       userId: USER_ID,
       role: "USER",
     });
@@ -364,6 +366,7 @@ describe("AdminUsersController", () => {
       .expect(200);
 
     expect(adminUsersService.updateUserRole).toHaveBeenCalledWith({
+      actorUserId: "admin-id",
       userId: USER_ID,
       role: "ADMIN",
     });
@@ -438,6 +441,7 @@ describe("AdminUsersController", () => {
       .expect(404);
 
     expect(adminUsersService.updateUserStatus).toHaveBeenCalledWith({
+      actorUserId: "admin-id",
       userId: USER_ID,
       isActive: false,
     });
@@ -457,6 +461,7 @@ describe("AdminUsersController", () => {
       .expect(409);
 
     expect(adminUsersService.updateUserStatus).toHaveBeenCalledWith({
+      actorUserId: "admin-id",
       userId: USER_ID,
       isActive: false,
     });
@@ -482,6 +487,7 @@ describe("AdminUsersController", () => {
       .expect(200);
 
     expect(adminUsersService.updateUserStatus).toHaveBeenCalledWith({
+      actorUserId: "admin-id",
       userId: USER_ID,
       isActive: false,
     });
