@@ -195,6 +195,7 @@ describe("AdminUsersService", () => {
     });
 
     const response = await service.updateUserRole({
+      actorUserId: "admin-actor",
       userId: "user-1",
       role: "ADMIN",
     });
@@ -244,6 +245,7 @@ describe("AdminUsersService", () => {
     });
 
     const response = await service.updateUserRole({
+      actorUserId: "admin-actor",
       userId: "admin-1",
       role: "ADMIN",
     });
@@ -258,12 +260,39 @@ describe("AdminUsersService", () => {
 
     await expect(
       service.updateUserRole({
+        actorUserId: "admin-actor",
         userId: "missing-user",
         role: "ADMIN",
       }),
     ).rejects.toMatchObject({
       status: 404,
       message: "User not found",
+    });
+
+    expect(count).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("prevents an administrator from demoting their own account", async () => {
+    findUnique.mockResolvedValue({
+      id: "admin-1",
+      email: "admin@example.com",
+      displayName: "Administrator",
+      role: "ADMIN",
+      isActive: true,
+      createdAt: new Date("2026-07-20T10:00:00.000Z"),
+      updatedAt: new Date("2026-07-21T11:00:00.000Z"),
+    });
+
+    await expect(
+      service.updateUserRole({
+        actorUserId: "admin-1",
+        userId: "admin-1",
+        role: "USER",
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "Cannot change your own administrator role",
     });
 
     expect(count).not.toHaveBeenCalled();
@@ -284,6 +313,7 @@ describe("AdminUsersService", () => {
 
     await expect(
       service.updateUserRole({
+        actorUserId: "admin-actor",
         userId: "admin-1",
         role: "USER",
       }),
@@ -323,6 +353,7 @@ describe("AdminUsersService", () => {
     });
 
     const response = await service.updateUserRole({
+      actorUserId: "admin-actor",
       userId: "admin-1",
       role: "USER",
     });
@@ -374,6 +405,7 @@ describe("AdminUsersService", () => {
     });
 
     const response = await service.updateUserStatus({
+      actorUserId: "admin-actor",
       userId: "user-1",
       isActive: false,
     });
@@ -423,6 +455,7 @@ describe("AdminUsersService", () => {
     });
 
     const response = await service.updateUserStatus({
+      actorUserId: "admin-actor",
       userId: "user-1",
       isActive: false,
     });
@@ -437,12 +470,39 @@ describe("AdminUsersService", () => {
 
     await expect(
       service.updateUserStatus({
+        actorUserId: "admin-actor",
         userId: "missing-user",
         isActive: false,
       }),
     ).rejects.toMatchObject({
       status: 404,
       message: "User not found",
+    });
+
+    expect(count).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("prevents an administrator from deactivating their own account", async () => {
+    findUnique.mockResolvedValue({
+      id: "admin-1",
+      email: "admin@example.com",
+      displayName: "Administrator",
+      role: "ADMIN",
+      isActive: true,
+      createdAt: new Date("2026-07-20T10:00:00.000Z"),
+      updatedAt: new Date("2026-07-21T11:00:00.000Z"),
+    });
+
+    await expect(
+      service.updateUserStatus({
+        actorUserId: "admin-1",
+        userId: "admin-1",
+        isActive: false,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "Cannot deactivate your own administrator account",
     });
 
     expect(count).not.toHaveBeenCalled();
@@ -463,6 +523,7 @@ describe("AdminUsersService", () => {
 
     await expect(
       service.updateUserStatus({
+        actorUserId: "admin-actor",
         userId: "admin-1",
         isActive: false,
       }),
@@ -502,6 +563,7 @@ describe("AdminUsersService", () => {
     });
 
     const response = await service.updateUserStatus({
+      actorUserId: "admin-actor",
       userId: "admin-1",
       isActive: false,
     });

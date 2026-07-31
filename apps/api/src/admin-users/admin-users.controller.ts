@@ -12,7 +12,9 @@ import {
 
 import type { AdminUserListItem, AdminUserListResponse } from "@ebookstore/contracts";
 
+import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import type { UserResponse } from "../auth/user-response";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { AdminUsersService } from "./admin-users.service";
@@ -54,8 +56,10 @@ export class AdminUsersController {
   updateUserRole(
     @Param("id", new ParseUUIDPipe({ version: "4" })) id: string,
     @Body() body: UpdateAdminUserRoleDto,
+    @CurrentUser() currentUser: UserResponse,
   ): Promise<AdminUserListItem> {
     return this.adminUsers.updateUserRole({
+      actorUserId: currentUser.id,
       userId: id,
       role: body.role,
     });
@@ -65,8 +69,10 @@ export class AdminUsersController {
   updateUserStatus(
     @Param("id", new ParseUUIDPipe({ version: "4" })) id: string,
     @Body() body: UpdateAdminUserStatusDto,
+    @CurrentUser() currentUser: UserResponse,
   ): Promise<AdminUserListItem> {
     return this.adminUsers.updateUserStatus({
+      actorUserId: currentUser.id,
       userId: id,
       isActive: body.isActive,
     });

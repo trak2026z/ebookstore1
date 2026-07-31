@@ -1,12 +1,26 @@
 import type { AdminUserListItem, AdminUserRole } from "@ebookstore/contracts";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { AdminUsersApi } from "../api/admin-users-api";
 import { ApiClientError } from "../api/api-client";
 import { createAdminUsersPath } from "../navigation/browser-navigation";
+import {
+  AdminUserManagement,
+  type AdminUserActionState,
+  type PendingAdminUserAction,
+} from "./AdminUserManagement";
 import { AdminAccessDenied } from "./AdminUsersPage";
 
 const ADMIN_USER_LOAD_FAILED_MESSAGE = "Nie udało się pobrać danych użytkownika. Spróbuj ponownie.";
+
+const ADMIN_USER_ROLE_UPDATE_FAILED_MESSAGE =
+  "Nie udało się zmienić roli użytkownika. Spróbuj ponownie.";
+
+const ADMIN_USER_STATUS_UPDATE_FAILED_MESSAGE =
+  "Nie udało się zmienić statusu użytkownika. Spróbuj ponownie.";
+
+const ADMIN_USER_CONFLICT_MESSAGE =
+  "Nie można wykonać tej operacji. Konto musi zachować bezpieczne uprawnienia administratora.";
 
 const roleLabels = {
   USER: "Użytkownik",
@@ -35,6 +49,7 @@ type AdminUserDetailsState =
 export interface AdminUserDetailsPageProps {
   readonly accessToken: string;
   readonly adminUsers: AdminUsersApi;
+  readonly currentUserId: string;
   readonly userId: string;
   readonly returnPage: number;
   readonly onSessionRejected: () => void;
@@ -56,6 +71,22 @@ function formatDateTime(value: string): string {
 
 function displayName(user: AdminUserListItem): string {
   return user.displayName?.trim() || "Nie ustawiono";
+}
+
+function actionSuccessMessage(action: PendingAdminUserAction): string {
+  return action.kind === "role"
+    ? "Rola użytkownika została zmieniona."
+    : "Status użytkownika został zmieniony.";
+}
+
+function actionFailureMessage(action: PendingAdminUserAction, error: unknown): string {
+  if (error instanceof ApiClientError && error.status === 409) {
+    return ADMIN_USER_CONFLICT_MESSAGE;
+  }
+
+  return action.kind === "role"
+    ? ADMIN_USER_ROLE_UPDATE_FAILED_MESSAGE
+    : ADMIN_USER_STATUS_UPDATE_FAILED_MESSAGE;
 }
 
 function AdminUserNotFound({ returnPage }: { readonly returnPage: number }) {
@@ -122,20 +153,36 @@ function AdminUserDetails({ user }: { readonly user: AdminUserListItem }) {
 export function AdminUserDetailsPage({
   accessToken,
   adminUsers,
+  currentUserId,
   userId,
   returnPage,
   onSessionRejected,
 }: AdminUserDetailsPageProps) {
+  const isMounted = useRef(true);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<AdminUserDetailsState>({
     status: "loading",
   });
+  const [actionState, setActionState] = useState<AdminUserActionState>({
+    status: "idle",
+  });
+
+  useEffect(() => {
+    isMounted.current = true;
+
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isCurrent = true;
 
     setState({
       status: "loading",
+    });
+    setActionState({
+      status: "idle",
     });
 
     async function loadUser(): Promise<void> {
@@ -189,6 +236,102 @@ export function AdminUserDetailsPage({
     };
   }, [accessToken, adminUsers, attempt, onSessionRejected, userId]);
 
+  function requestRoleChange(role: AdminUserRole): void {
+    if (state.status !== "ready" || state.user.id === currentUserId) {
+      return;
+    }
+
+    setActionState({
+      status: "confirming",
+      action: {
+        kind: "role",
+        nextRole: role,
+      },
+    });
+  }
+
+  function requestStatusChange(isActive: boolean): void {
+    if (state.status !== "ready" || state.user.id === currentUserId) {
+      return;
+    }
+
+    setActionState({
+      status: "confirming",
+      action: {
+        kind: "status",
+        nextIsActive: isActive,
+      },
+    });
+  }
+
+  async function confirmAction(): Promise<void> {
+    if (
+      state.status !== "ready" ||
+      actionState.status !== "confirming" ||
+      state.user.id === currentUserId
+    ) {
+      return;
+    }
+
+    const action = actionState.action;
+
+    setActionState({
+      status: "submitting",
+      action,
+    });
+
+    try {
+      const updatedUser =
+        action.kind === "role"
+          ? await adminUsers.updateUserRole(accessToken, state.user.id, action.nextRole)
+          : await adminUsers.updateUserStatus(accessToken, state.user.id, action.nextIsActive);
+
+      if (!isMounted.current) {
+        return;
+      }
+
+      setState({
+        status: "ready",
+        user: updatedUser,
+      });
+      setActionState({
+        status: "success",
+        message: actionSuccessMessage(action),
+      });
+    } catch (error) {
+      if (!isMounted.current) {
+        return;
+      }
+
+      if (error instanceof ApiClientError && error.status === 401) {
+        onSessionRejected();
+
+        return;
+      }
+
+      if (error instanceof ApiClientError && error.status === 403) {
+        setState({
+          status: "forbidden",
+        });
+
+        return;
+      }
+
+      if (error instanceof ApiClientError && error.status === 404) {
+        setState({
+          status: "not-found",
+        });
+
+        return;
+      }
+
+      setActionState({
+        status: "error",
+        message: actionFailureMessage(action, error),
+      });
+    }
+  }
+
   if (state.status === "forbidden") {
     return <AdminAccessDenied />;
   }
@@ -229,7 +372,27 @@ export function AdminUserDetailsPage({
           </div>
         )}
 
-        {state.status === "ready" && <AdminUserDetails user={state.user} />}
+        {state.status === "ready" && (
+          <>
+            <AdminUserDetails user={state.user} />
+
+            <AdminUserManagement
+              user={state.user}
+              isCurrentUser={state.user.id === currentUserId}
+              actionState={actionState}
+              onRequestRole={requestRoleChange}
+              onRequestStatus={requestStatusChange}
+              onCancel={() => {
+                setActionState({
+                  status: "idle",
+                });
+              }}
+              onConfirm={() => {
+                void confirmAction();
+              }}
+            />
+          </>
+        )}
 
         <div className="admin-actions">
           <a href={createAdminUsersPath(returnPage)} data-app-link="true">

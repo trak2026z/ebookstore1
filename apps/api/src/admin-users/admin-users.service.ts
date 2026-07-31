@@ -14,11 +14,13 @@ export interface ListAdminUsersInput {
 }
 
 export interface UpdateAdminUserRoleInput {
+  readonly actorUserId: string;
   readonly userId: string;
   readonly role: AdminUserRole;
 }
 
 export interface UpdateAdminUserStatusInput {
+  readonly actorUserId: string;
   readonly userId: string;
   readonly isActive: boolean;
 }
@@ -115,6 +117,10 @@ export class AdminUsersService {
           return toAdminUserListItem(user);
         }
 
+        if (input.actorUserId === input.userId && user.role === "ADMIN" && input.role === "USER") {
+          throw new ConflictException("Cannot change your own administrator role");
+        }
+
         if (user.role === "ADMIN" && input.role === "USER" && user.isActive) {
           const activeAdminCount = await transaction.user.count({
             where: {
@@ -156,6 +162,10 @@ export class AdminUsersService {
 
         if (user.isActive === input.isActive) {
           return toAdminUserListItem(user);
+        }
+
+        if (input.actorUserId === input.userId && user.isActive && input.isActive === false) {
+          throw new ConflictException("Cannot deactivate your own administrator account");
         }
 
         if (user.role === "ADMIN" && user.isActive && input.isActive === false) {

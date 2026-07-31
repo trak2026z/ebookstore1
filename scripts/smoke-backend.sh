@@ -737,8 +737,17 @@ ADMIN_TOKEN="$(
     "$LAST_BODY"
 )"
 
+ADMIN_USER_ID="$(
+  python3 -S -c \
+    'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["user"]["id"])' \
+    "$LAST_BODY"
+)"
+
 [[ -n "$ADMIN_TOKEN" ]] ||
   fail "administrator login response did not contain an access token"
+
+[[ -n "$ADMIN_USER_ID" ]] ||
+  fail "administrator login response did not contain the administrator ID"
 
 request_with_method \
   "admin list missing token" \
@@ -845,6 +854,26 @@ cat > "$TMP_DIR/status-active.json" <<'JSON'
   "isActive": true
 }
 JSON
+
+request_with_method \
+  "admin self demotion guard" \
+  PATCH \
+  "/admin/users/$ADMIN_USER_ID/role" \
+  409 \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$TMP_DIR/role-user.json"
+check_auth_json conflict "$ADMIN_EMAIL"
+
+request_with_method \
+  "admin self deactivation guard" \
+  PATCH \
+  "/admin/users/$ADMIN_USER_ID/status" \
+  409 \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$TMP_DIR/status-inactive.json"
+check_auth_json conflict "$ADMIN_EMAIL"
 
 request_with_method \
   "admin promote user" \
