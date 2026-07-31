@@ -2,6 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import type {
+  AdminUserListItem,
   AdminUserListResponse,
   AuthUserResponse,
   LoginRequest,
@@ -88,13 +89,15 @@ function createCatalog(): AppCatalogApi {
   };
 }
 
-function createAdminUsers(listUsers: AdminUsersApi["listUsers"]): AdminUsersApi {
+function createAdminUsers(
+  listUsers: AdminUsersApi["listUsers"],
+  getUser: AdminUsersApi["getUser"] = async () => {
+    throw new Error("Unexpected getUser request.");
+  },
+): AdminUsersApi {
   return {
     listUsers,
-
-    async getUser() {
-      throw new Error("Unexpected getUser request.");
-    },
+    getUser,
 
     async updateUserRole() {
       throw new Error("Unexpected updateUserRole request.");
@@ -166,7 +169,7 @@ describe("App", () => {
     render(<App catalog={catalog} />);
 
     expect(
-      await screen.findByRole("heading", {
+      screen.getByRole("heading", {
         level: 1,
         name: "Ebookstore",
       }),
@@ -377,6 +380,74 @@ describe("App", () => {
       page: 1,
       pageSize: 20,
     });
+  });
+
+  it("opens protected user details without reloading the application", async () => {
+    const adminUser: AuthUserResponse = {
+      ...authUser,
+      email: "admin@example.com",
+      role: "ADMIN",
+    };
+
+    const managedUser: AdminUserListItem = {
+      id: "managed-user",
+      email: "managed@example.com",
+      displayName: "Managed User",
+      role: "USER",
+      isActive: true,
+      createdAt: "2026-07-22T10:00:00.000Z",
+      updatedAt: "2026-07-23T10:00:00.000Z",
+    };
+
+    const response: AdminUserListResponse = {
+      items: [managedUser],
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    };
+
+    const listUsers = vi.fn<AdminUsersApi["listUsers"]>().mockResolvedValue(response);
+    const getUser = vi.fn<AdminUsersApi["getUser"]>().mockResolvedValue(managedUser);
+
+    window.history.replaceState(null, "", "/login");
+
+    render(
+      <App
+        catalog={createCatalog()}
+        auth={createAuth(adminUser)}
+        adminUsers={createAdminUsers(listUsers, getUser)}
+      />,
+    );
+
+    submitLogin();
+
+    fireEvent.click(
+      await screen.findByRole("link", {
+        name: "Użytkownicy",
+      }),
+    );
+
+    fireEvent.click(
+      await screen.findByRole("link", {
+        name: "Szczegóły: managed@example.com",
+      }),
+    );
+
+    expect(window.location.pathname).toBe("/admin/users/managed-user");
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Szczegóły użytkownika",
+      }),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("managed@example.com")).toBeInTheDocument();
+
+    expect(getUser).toHaveBeenCalledWith("signed.jwt.token", "managed-user");
   });
 
   it("stores a successful session in memory and returns to the catalog", async () => {

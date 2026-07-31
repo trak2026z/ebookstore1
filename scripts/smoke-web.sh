@@ -93,6 +93,38 @@ wait_for_health() {
   fail "$service did not become healthy within 60 seconds"
 }
 
+check_react_document() {
+  grep -Fq '<div id="root"' "$LAST_BODY" ||
+    fail "$1 does not contain the React root element"
+
+  pass "$1 contains the React root element"
+}
+
+check_error_code() {
+  if ! node - "$LAST_BODY" "$1" <<'NODE'
+const fs = require("node:fs");
+
+const [, , path, expectedCode] = process.argv;
+const payload = JSON.parse(fs.readFileSync(path, "utf8"));
+
+if (
+  payload.code !== expectedCode ||
+  typeof payload.message !== "string" ||
+  payload.message.length === 0 ||
+  typeof payload.requestId !== "string" ||
+  payload.requestId.length === 0 ||
+  !Array.isArray(payload.details)
+) {
+  process.exit(1);
+}
+NODE
+  then
+    fail "JSON error contract does not match code $1"
+  fi
+
+  pass "JSON error contract contains code $1"
+}
+
 request() {
   local name="$1"
   local path="$2"
@@ -146,11 +178,15 @@ log "Starting API and web services"
 wait_for_health api
 wait_for_health web
 
-log "Checking the frontend document"
+log "Checking frontend SPA entry points"
 request "frontend document" "/" "200"
-grep -Fq '<div id="root"' "$LAST_BODY" ||
-  fail "frontend document does not contain the React root element"
-pass "frontend document contains the React root element"
+check_react_document "frontend document"
+
+request "admin users direct route" "/admin/users?page=2" "200"
+check_react_document "admin users direct route"
+
+request   "admin user details direct route"   "/admin/users/11111111-1111-4111-8111-111111111111?page=2"   "200"
+check_react_document "admin user details direct route"
 
 log "Checking the Vite API proxy"
 request "proxied API health" "/api/v1/health" "200"
@@ -164,4 +200,7 @@ node -e '
 ' "$LAST_BODY" || fail "proxied API health response does not match { status: \"ok\" }"
 pass "Vite proxy returned the API health contract"
 
-printf '\nSUCCESS: web service, healthcheck and /api proxy passed.\n'
+request   "proxied admin authentication guard"   "/api/v1/admin/users?page=1&pageSize=20"   "401"
+check_error_code "UNAUTHORIZED"
+
+printf '\nSUCCESS: web health, SPA fallbacks and /api proxy guards passed.\n'

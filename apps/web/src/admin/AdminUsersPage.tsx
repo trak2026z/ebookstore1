@@ -7,11 +7,9 @@ import { useEffect, useState } from "react";
 
 import type { AdminUsersApi } from "../api/admin-users-api";
 import { ApiClientError } from "../api/api-client";
+import { createAdminUserPath, createAdminUsersPath } from "../navigation/browser-navigation";
 
-const ADMIN_USERS_QUERY = {
-  page: 1,
-  pageSize: 20,
-} as const;
+const ADMIN_USERS_PAGE_SIZE = 20;
 
 const ADMIN_USERS_LOAD_FAILED_MESSAGE = "Nie udało się pobrać użytkowników. Spróbuj ponownie.";
 
@@ -39,6 +37,7 @@ type AdminUsersState =
 export interface AdminUsersPageProps {
   readonly accessToken: string;
   readonly adminUsers: AdminUsersApi;
+  readonly page: number;
   readonly onSessionRejected: () => void;
 }
 
@@ -59,6 +58,51 @@ function displayName(user: AdminUserListItem): string {
   return user.displayName?.trim() || "Nie ustawiono";
 }
 
+function PaginationControl({
+  enabled,
+  href,
+  label,
+}: {
+  readonly enabled: boolean;
+  readonly href: string;
+  readonly label: string;
+}) {
+  return enabled ? (
+    <a href={href} data-app-link="true">
+      {label}
+    </a>
+  ) : (
+    <button type="button" disabled>
+      {label}
+    </button>
+  );
+}
+
+function AdminUsersPagination({ response }: { readonly response: AdminUserListResponse }) {
+  const currentPage = response.pagination.page;
+  const totalPages = Math.max(response.pagination.totalPages, 1);
+
+  return (
+    <nav className="admin-pagination" aria-label="Paginacja użytkowników">
+      <PaginationControl
+        enabled={currentPage > 1}
+        href={createAdminUsersPath(Math.max(currentPage - 1, 1))}
+        label="Poprzednia"
+      />
+
+      <span className="admin-pagination__summary" aria-live="polite">
+        Strona {currentPage} z {totalPages}
+      </span>
+
+      <PaginationControl
+        enabled={currentPage < response.pagination.totalPages}
+        href={createAdminUsersPath(currentPage + 1)}
+        label="Następna"
+      />
+    </nav>
+  );
+}
+
 function AdminUsersTable({ response }: { readonly response: AdminUserListResponse }) {
   return (
     <>
@@ -72,6 +116,7 @@ function AdminUsersTable({ response }: { readonly response: AdminUserListRespons
               <th scope="col">Rola</th>
               <th scope="col">Status</th>
               <th scope="col">Utworzono</th>
+              <th scope="col">Akcje</th>
             </tr>
           </thead>
           <tbody>
@@ -94,6 +139,16 @@ function AdminUsersTable({ response }: { readonly response: AdminUserListRespons
                 <td>
                   <time dateTime={user.createdAt}>{formatCreatedAt(user.createdAt)}</time>
                 </td>
+                <td>
+                  <a
+                    className="admin-user-details-link"
+                    href={createAdminUserPath(user.id, response.pagination.page)}
+                    aria-label={`Szczegóły: ${user.email}`}
+                    data-app-link="true"
+                  >
+                    Szczegóły
+                  </a>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -103,6 +158,8 @@ function AdminUsersTable({ response }: { readonly response: AdminUserListRespons
       <p className="admin-users-summary">
         Wyświetlono {response.items.length} z {response.pagination.total} kont.
       </p>
+
+      <AdminUsersPagination response={response} />
     </>
   );
 }
@@ -158,6 +215,7 @@ export function AdminAccessDenied() {
 export function AdminUsersPage({
   accessToken,
   adminUsers,
+  page,
   onSessionRejected,
 }: AdminUsersPageProps) {
   const [attempt, setAttempt] = useState(0);
@@ -168,9 +226,16 @@ export function AdminUsersPage({
   useEffect(() => {
     let isCurrent = true;
 
+    setState({
+      status: "loading",
+    });
+
     async function loadUsers(): Promise<void> {
       try {
-        const response = await adminUsers.listUsers(accessToken, ADMIN_USERS_QUERY);
+        const response = await adminUsers.listUsers(accessToken, {
+          page,
+          pageSize: ADMIN_USERS_PAGE_SIZE,
+        });
 
         if (isCurrent) {
           setState({
@@ -209,12 +274,9 @@ export function AdminUsersPage({
     return () => {
       isCurrent = false;
     };
-  }, [accessToken, adminUsers, attempt, onSessionRejected]);
+  }, [accessToken, adminUsers, attempt, onSessionRejected, page]);
 
   function retry(): void {
-    setState({
-      status: "loading",
-    });
     setAttempt((currentAttempt) => currentAttempt + 1);
   }
 
@@ -253,7 +315,10 @@ export function AdminUsersPage({
           (state.response.items.length > 0 ? (
             <AdminUsersTable response={state.response} />
           ) : (
-            <p className="admin-status">Brak użytkowników do wyświetlenia.</p>
+            <>
+              <p className="admin-status">Brak użytkowników do wyświetlenia.</p>
+              <AdminUsersPagination response={state.response} />
+            </>
           ))}
 
         <div className="admin-actions">

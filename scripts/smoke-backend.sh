@@ -5,6 +5,10 @@ API_ORIGIN="${API_ORIGIN:-http://localhost:3001}"
 API_BASE="${API_ORIGIN%/}/api/v1"
 EXPECTED_COVER_FILE="${EXPECTED_COVER_FILE:-storage/covers/typescript-w-praktyce.epub.jpg}"
 KEEP_ENV="${KEEP_ENV:-0}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin.smoke@example.test}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-Correct-Admin-42}"
+ADMIN_DISPLAY_NAME="${ADMIN_DISPLAY_NAME:-Smoke Administrator}"
+SMOKE_USER_PASSWORD="${SMOKE_USER_PASSWORD:-Correct-User-42}"
 
 COMPOSE=(docker compose)
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ebookstore-smoke.XXXXXX")"
@@ -69,6 +73,12 @@ cleanup() {
 
   if [[ "$exit_code" -eq 0 ]]; then
     printf '\nSUCCESS: %d setup steps and %d test assertions passed.\n' "$SETUP_COUNT" "$TEST_COUNT"
+
+    if [[ "$KEEP_ENV" == "1" ]]; then
+      printf '\nADMIN LOGIN (local smoke environment):\n'
+      printf '  email: %s\n' "$ADMIN_EMAIL"
+      printf '  password: %s\n' "$ADMIN_PASSWORD"
+    fi
   else
     printf '\nFAILED: smoke test exited with code %d; cleanup completed.\n' "$exit_code" >&2
   fi
@@ -106,9 +116,9 @@ def private(value):
         for child in value:
             private(child)
 
-def public_user(user):
+def public_user(user, role="USER"):
     assert email is not None and user["email"] == email, user
-    assert user["role"] == "USER", user
+    assert user["role"] == role, user
     assert isinstance(user["id"], str) and user["id"], user
     assert isinstance(user["createdAt"], str) and user["createdAt"], user
 
@@ -120,6 +130,23 @@ def public_user(user):
     }
     leaked = forbidden.intersection(user)
     assert not leaked, f"private user fields leaked: {sorted(leaked)}"
+
+def admin_user(user, expected_email, role, is_active):
+    assert user["email"] == expected_email, user
+    assert user["role"] == role, user
+    assert user["isActive"] is is_active, user
+    assert isinstance(user["id"], str) and user["id"], user
+    assert isinstance(user["createdAt"], str) and user["createdAt"], user
+    assert isinstance(user["updatedAt"], str) and user["updatedAt"], user
+
+    forbidden = {"password", "passwordHash"}
+    leaked = forbidden.intersection(user)
+    assert not leaked, f"private user fields leaked: {sorted(leaked)}"
+
+SMOKE_USER_EMAILS = {
+    f"smoke.user.{index:02d}@example.test"
+    for index in range(1, 21)
+}
 
 if mode == "health":
     assert payload == {"status": "ok"}, payload
@@ -209,7 +236,8 @@ elif mode == "unauthorized":
     error("UNAUTHORIZED")
 elif mode == "register":
     public_user(payload)
-    assert payload["displayName"] == "Smoke User", payload
+    expected_display_name = f"Smoke User {email.split('.')[2].split('@')[0]}"
+    assert payload["displayName"] == expected_display_name, payload
 elif mode == "login":
     assert payload["tokenType"] == "Bearer", payload
     assert isinstance(payload["expiresIn"], int) and payload["expiresIn"] > 0, payload
@@ -217,6 +245,45 @@ elif mode == "login":
     public_user(payload["user"])
 elif mode == "me":
     public_user(payload)
+elif mode == "admin_login":
+    assert payload["tokenType"] == "Bearer", payload
+    assert isinstance(payload["expiresIn"], int) and payload["expiresIn"] > 0, payload
+    assert isinstance(payload["accessToken"], str) and payload["accessToken"], payload
+    public_user(payload["user"], "ADMIN")
+elif mode == "admin_page1":
+    assert payload["pagination"] == {
+        "page": 1,
+        "pageSize": 20,
+        "total": 21,
+        "totalPages": 2,
+    }, payload
+    assert len(payload["items"]) == 20, payload
+    assert {item["email"] for item in payload["items"]} == SMOKE_USER_EMAILS, payload
+    for item in payload["items"]:
+        admin_user(item, item["email"], "USER", True)
+elif mode == "admin_page2":
+    assert payload["pagination"] == {
+        "page": 2,
+        "pageSize": 20,
+        "total": 21,
+        "totalPages": 2,
+    }, payload
+    assert len(payload["items"]) == 1, payload
+    admin_user(payload["items"][0], email, "ADMIN", True)
+elif mode == "admin_details":
+    admin_user(payload, email, "USER", True)
+elif mode == "admin_role_admin":
+    admin_user(payload, email, "ADMIN", True)
+elif mode == "admin_role_user":
+    admin_user(payload, email, "USER", True)
+elif mode == "admin_status_inactive":
+    admin_user(payload, email, "USER", False)
+elif mode == "admin_status_active":
+    admin_user(payload, email, "USER", True)
+elif mode == "forbidden":
+    error("FORBIDDEN")
+elif mode == "not_found":
+    error("NOT_FOUND")
 elif mode == "conflict":
     error("CONFLICT")
 else:
@@ -279,6 +346,40 @@ check_auth_json() {
     fail "JSON contract failed: $1"
 
   test_pass "JSON contract: $1"
+}
+
+check_admin_pagination_pair() {
+  if ! python3 -S - "$1" "$2" "$3" <<'PY'
+import json
+import sys
+
+page_one_path, page_two_path, admin_email = sys.argv[1:4]
+
+with open(page_one_path, encoding="utf-8") as handle:
+    page_one = json.load(handle)
+
+with open(page_two_path, encoding="utf-8") as handle:
+    page_two = json.load(handle)
+
+page_one_emails = {item["email"] for item in page_one["items"]}
+page_two_emails = {item["email"] for item in page_two["items"]}
+expected_users = {
+    f"smoke.user.{index:02d}@example.test"
+    for index in range(1, 21)
+}
+
+assert page_one_emails.isdisjoint(page_two_emails), {
+    "pageOne": sorted(page_one_emails),
+    "pageTwo": sorted(page_two_emails),
+}
+assert page_one_emails == expected_users, page_one
+assert page_two_emails == {admin_email}, page_two
+PY
+  then
+    fail "Admin user pagination pages overlap or are incomplete"
+  fi
+
+  test_pass "admin pages are disjoint and contain 20 users plus the administrator"
 }
 
 check_pagination_pair() {
@@ -410,10 +511,14 @@ log "Applying database migrations"
   npm run db:migrate:deploy --workspace @ebookstore/api
 setup_pass "database migrations applied"
 
-log "Seeding deterministic test data"
-"${COMPOSE[@]}" run --rm workspace \
+log "Seeding deterministic catalog data and administrator"
+"${COMPOSE[@]}" run --rm \
+  -e ADMIN_EMAIL="$ADMIN_EMAIL" \
+  -e ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+  -e ADMIN_DISPLAY_NAME="$ADMIN_DISPLAY_NAME" \
+  workspace \
   npm run db:seed --workspace @ebookstore/api
-setup_pass "database seed completed"
+setup_pass "catalog and administrator seed completed"
 
 log "Creating deterministic cover fixture"
 create_cover_fixture
@@ -513,42 +618,49 @@ request "missing cover book" \
   "/api/v1/books/11111111-1111-4111-8111-111111111111/cover" 404
 check_json cover404
 
-log "Checking authentication endpoints"
+log "Creating 20 deterministic USER accounts"
 
-EMAIL="smoke.$(date +%s).$$@example.test"
-PASSWORD='Correct-Horse-42'
-DISPLAY_NAME='Smoke User'
+FIRST_USER_EMAIL="smoke.user.01@example.test"
 
-cat > "$TMP_DIR/register.json" <<JSON
+for ((user_number = 1; user_number <= 20; user_number += 1)); do
+  index="$(printf '%02d' "$user_number")"
+  EMAIL="smoke.user.${index}@example.test"
+  DISPLAY_NAME="Smoke User ${index}"
+  REGISTER_FILE="$TMP_DIR/register-${index}.json"
+
+  cat > "$REGISTER_FILE" <<JSON
 {
   "email": "$EMAIL",
   "displayName": "$DISPLAY_NAME",
-  "password": "$PASSWORD"
+  "password": "$SMOKE_USER_PASSWORD"
 }
 JSON
 
+  request_with_method \
+    "registration user ${index}" \
+    POST \
+    "/auth/register" \
+    201 \
+    -H 'Content-Type: application/json' \
+    --data-binary "@$REGISTER_FILE"
+  check_auth_json register "$EMAIL"
+done
+
+log "Checking authentication endpoints"
+
 cat > "$TMP_DIR/login.json" <<JSON
 {
-  "email": "$EMAIL",
-  "password": "$PASSWORD"
+  "email": "$FIRST_USER_EMAIL",
+  "password": "$SMOKE_USER_PASSWORD"
 }
 JSON
 
 cat > "$TMP_DIR/bad-login.json" <<JSON
 {
-  "email": "$EMAIL",
+  "email": "$FIRST_USER_EMAIL",
   "password": "Definitely-Wrong-42"
 }
 JSON
-
-request_with_method \
-  "registration" \
-  POST \
-  "/auth/register" \
-  201 \
-  -H 'Content-Type: application/json' \
-  --data-binary "@$TMP_DIR/register.json"
-check_auth_json register "$EMAIL"
 
 request_with_method \
   "login" \
@@ -557,7 +669,7 @@ request_with_method \
   200 \
   -H 'Content-Type: application/json' \
   --data-binary "@$TMP_DIR/login.json"
-check_auth_json login "$EMAIL"
+check_auth_json login "$FIRST_USER_EMAIL"
 
 TOKEN="$(
   python3 -S -c \
@@ -574,7 +686,7 @@ request_with_method \
   "/auth/me" \
   200 \
   -H "Authorization: Bearer $TOKEN"
-check_auth_json me "$EMAIL"
+check_auth_json me "$FIRST_USER_EMAIL"
 
 request_with_method \
   "duplicate registration" \
@@ -582,8 +694,8 @@ request_with_method \
   "/auth/register" \
   409 \
   -H 'Content-Type: application/json' \
-  --data-binary "@$TMP_DIR/register.json"
-check_auth_json conflict "$EMAIL"
+  --data-binary "@$TMP_DIR/register-01.json"
+check_auth_json conflict "$FIRST_USER_EMAIL"
 
 request_with_method \
   "invalid credentials" \
@@ -592,11 +704,184 @@ request_with_method \
   401 \
   -H 'Content-Type: application/json' \
   --data-binary "@$TMP_DIR/bad-login.json"
-check_auth_json unauthorized "$EMAIL"
+check_auth_json unauthorized "$FIRST_USER_EMAIL"
 
 request_with_method \
   "missing Bearer token" \
   GET \
   "/auth/me" \
   401
-check_auth_json unauthorized "$EMAIL"
+check_auth_json unauthorized "$FIRST_USER_EMAIL"
+
+log "Checking administrator endpoints"
+
+cat > "$TMP_DIR/admin-login.json" <<JSON
+{
+  "email": "$ADMIN_EMAIL",
+  "password": "$ADMIN_PASSWORD"
+}
+JSON
+
+request_with_method \
+  "administrator login" \
+  POST \
+  "/auth/login" \
+  200 \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$TMP_DIR/admin-login.json"
+check_auth_json admin_login "$ADMIN_EMAIL"
+
+ADMIN_TOKEN="$(
+  python3 -S -c \
+    'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["accessToken"])' \
+    "$LAST_BODY"
+)"
+
+[[ -n "$ADMIN_TOKEN" ]] ||
+  fail "administrator login response did not contain an access token"
+
+request_with_method \
+  "admin list missing token" \
+  GET \
+  "/admin/users?page=1&pageSize=20" \
+  401
+check_auth_json unauthorized "$ADMIN_EMAIL"
+
+request_with_method \
+  "admin list regular user guard" \
+  GET \
+  "/admin/users?page=1&pageSize=20" \
+  403 \
+  -H "Authorization: Bearer $TOKEN"
+check_auth_json forbidden "$FIRST_USER_EMAIL"
+
+request_with_method \
+  "admin users page 1" \
+  GET \
+  "/admin/users?page=1&pageSize=20" \
+  200 \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+check_auth_json admin_page1 "$ADMIN_EMAIL"
+ADMIN_PAGE_ONE_BODY="$LAST_BODY"
+
+request_with_method \
+  "admin users page 2" \
+  GET \
+  "/admin/users?page=2&pageSize=20" \
+  200 \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+check_auth_json admin_page2 "$ADMIN_EMAIL"
+ADMIN_PAGE_TWO_BODY="$LAST_BODY"
+
+check_admin_pagination_pair \
+  "$ADMIN_PAGE_ONE_BODY" \
+  "$ADMIN_PAGE_TWO_BODY" \
+  "$ADMIN_EMAIL"
+
+MANAGED_USER_ID="$(
+  python3 -S -c '
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    payload = json.load(handle)
+
+for item in payload["items"]:
+    if item["email"] == sys.argv[2]:
+        print(item["id"])
+        break
+else:
+    raise SystemExit("managed user was not found")
+' "$ADMIN_PAGE_ONE_BODY" "$FIRST_USER_EMAIL"
+)"
+
+[[ -n "$MANAGED_USER_ID" ]] ||
+  fail "admin list did not contain the managed user ID"
+
+request_with_method \
+  "admin user details" \
+  GET \
+  "/admin/users/$MANAGED_USER_ID" \
+  200 \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+check_auth_json admin_details "$FIRST_USER_EMAIL"
+
+request_with_method \
+  "admin invalid user UUID" \
+  GET \
+  "/admin/users/not-a-uuid" \
+  400 \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+check_json validation
+
+request_with_method \
+  "admin missing user" \
+  GET \
+  "/admin/users/11111111-1111-4111-8111-111111111111" \
+  404 \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+check_auth_json not_found "$FIRST_USER_EMAIL"
+
+cat > "$TMP_DIR/role-admin.json" <<'JSON'
+{
+  "role": "ADMIN"
+}
+JSON
+
+cat > "$TMP_DIR/role-user.json" <<'JSON'
+{
+  "role": "USER"
+}
+JSON
+
+cat > "$TMP_DIR/status-inactive.json" <<'JSON'
+{
+  "isActive": false
+}
+JSON
+
+cat > "$TMP_DIR/status-active.json" <<'JSON'
+{
+  "isActive": true
+}
+JSON
+
+request_with_method \
+  "admin promote user" \
+  PATCH \
+  "/admin/users/$MANAGED_USER_ID/role" \
+  200 \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$TMP_DIR/role-admin.json"
+check_auth_json admin_role_admin "$FIRST_USER_EMAIL"
+
+request_with_method \
+  "admin restore user role" \
+  PATCH \
+  "/admin/users/$MANAGED_USER_ID/role" \
+  200 \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$TMP_DIR/role-user.json"
+check_auth_json admin_role_user "$FIRST_USER_EMAIL"
+
+request_with_method \
+  "admin deactivate user" \
+  PATCH \
+  "/admin/users/$MANAGED_USER_ID/status" \
+  200 \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$TMP_DIR/status-inactive.json"
+check_auth_json admin_status_inactive "$FIRST_USER_EMAIL"
+
+request_with_method \
+  "admin reactivate user" \
+  PATCH \
+  "/admin/users/$MANAGED_USER_ID/status" \
+  200 \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$TMP_DIR/status-active.json"
+check_auth_json admin_status_active "$FIRST_USER_EMAIL"
