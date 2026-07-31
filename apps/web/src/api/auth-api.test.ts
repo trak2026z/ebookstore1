@@ -63,6 +63,10 @@ function createClient() {
 
       return response as TResponse;
     },
+
+    async patch<TResponse>(): Promise<TResponse> {
+      throw new Error("Unexpected PATCH request.");
+    },
   };
 
   return {
@@ -124,6 +128,9 @@ describe("createAuthApi", () => {
       get,
       async post<TResponse>(): Promise<TResponse> {
         throw new Error("Unexpected POST request.");
+      },
+      async patch<TResponse>(): Promise<TResponse> {
+        throw new Error("Unexpected PATCH request.");
       },
     };
     const api = createAuthApi(client);
