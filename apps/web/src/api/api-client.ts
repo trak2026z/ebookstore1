@@ -12,6 +12,12 @@ export interface JsonApiClient {
     body: TBody,
     options?: ApiRequestOptions,
   ): Promise<TResponse>;
+
+  patch<TResponse, TBody>(
+    path: string,
+    body: TBody,
+    options?: ApiRequestOptions,
+  ): Promise<TResponse>;
 }
 
 export interface ApiClientOptions {
@@ -175,6 +181,21 @@ export function createApiClient(options: ApiClientOptions = {}): JsonApiClient {
     return payload as T;
   }
 
+  function sendJson<TResponse, TBody>(
+    method: "POST" | "PATCH",
+    path: string,
+    body: TBody,
+    requestOptions: ApiRequestOptions,
+  ): Promise<TResponse> {
+    const serializedBody = serializeJsonBody(body);
+
+    return request<TResponse>(path, {
+      method,
+      headers: createRequestHeaders(requestOptions, true),
+      body: serializedBody,
+    });
+  }
+
   return {
     get<T>(path: string, requestOptions: ApiRequestOptions = {}): Promise<T> {
       return request<T>(path, {
@@ -187,13 +208,15 @@ export function createApiClient(options: ApiClientOptions = {}): JsonApiClient {
       body: TBody,
       requestOptions: ApiRequestOptions = {},
     ): Promise<TResponse> {
-      const serializedBody = serializeJsonBody(body);
+      return sendJson<TResponse, TBody>("POST", path, body, requestOptions);
+    },
 
-      return request<TResponse>(path, {
-        method: "POST",
-        headers: createRequestHeaders(requestOptions, true),
-        body: serializedBody,
-      });
+    patch<TResponse, TBody>(
+      path: string,
+      body: TBody,
+      requestOptions: ApiRequestOptions = {},
+    ): Promise<TResponse> {
+      return sendJson<TResponse, TBody>("PATCH", path, body, requestOptions);
     },
   };
 }

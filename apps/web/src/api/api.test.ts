@@ -21,6 +21,10 @@ function createReadOnlyClient(getImpl: JsonApiClient["get"]): JsonApiClient {
     async post<TResponse>(): Promise<TResponse> {
       throw new Error("Unexpected POST request.");
     },
+
+    async patch<TResponse>(): Promise<TResponse> {
+      throw new Error("Unexpected PATCH request.");
+    },
   };
 }
 
@@ -69,6 +73,40 @@ describe("createApiClient", () => {
         "Content-Type": "application/json",
       },
       body: '{"email":"user@example.com","password":"Correct-Horse-42"}',
+    });
+  });
+
+  it("sends an authenticated PATCH request with a JSON body", async () => {
+    const responseBody = {
+      id: "user-id",
+      role: "ADMIN",
+    };
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(responseBody));
+    const client = createApiClient({
+      baseUrl: "http://api:3001/",
+      fetchImpl,
+    });
+
+    await expect(
+      client.patch(
+        "/api/v1/admin/users/user-id/role",
+        {
+          role: "ADMIN",
+        },
+        {
+          accessToken: " admin-token ",
+        },
+      ),
+    ).resolves.toEqual(responseBody);
+
+    expect(fetchImpl).toHaveBeenCalledWith("http://api:3001/api/v1/admin/users/user-id/role", {
+      method: "PATCH",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: "Bearer admin-token",
+      },
+      body: '{"role":"ADMIN"}',
     });
   });
 
@@ -159,6 +197,45 @@ describe("createApiClient", () => {
       requestId: "request-400",
       details,
     });
+  });
+
+  it("preserves admin PATCH errors without retrying the request", async () => {
+    for (const status of [401, 403, 404, 409]) {
+      const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+        jsonResponse(
+          {
+            code: `ERROR_${status}`,
+            message: `Request failed with ${status}.`,
+            requestId: `request-${status}`,
+            details: [],
+          },
+          status,
+        ),
+      );
+      const client = createApiClient({
+        fetchImpl,
+      });
+
+      const error = await client
+        .patch(
+          "/api/v1/admin/users/user-id/status",
+          {
+            isActive: false,
+          },
+          {
+            accessToken: "admin-token",
+          },
+        )
+        .catch((value: unknown) => value);
+
+      expect(error).toBeInstanceOf(ApiClientError);
+      expect(error).toMatchObject({
+        status,
+        code: `ERROR_${status}`,
+        requestId: `request-${status}`,
+      });
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    }
   });
 
   it("rejects a successful response containing invalid JSON", async () => {
