@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { adminUsersApi, type AdminUsersApi } from "./api/admin-users-api";
 import { authApi } from "./api/auth-api";
 import { catalogApi } from "./api/catalog-api";
+import { AdminUserDetailsPage } from "./admin/AdminUserDetailsPage";
 import { AdminAccessDenied, AdminAccessRequired, AdminUsersPage } from "./admin/AdminUsersPage";
 import { LoginPage } from "./auth/LoginPage";
 import { ProfileAccessRequired, ProfilePage, type ProfileApi } from "./auth/ProfilePage";
@@ -99,7 +100,7 @@ function MainContent({
     );
   }
 
-  if (route.name === "admin-users") {
+  if (route.name === "admin-users" || route.name === "admin-user-details") {
     if (!authSession) {
       return <AdminAccessRequired />;
     }
@@ -108,10 +109,19 @@ function MainContent({
       return <AdminAccessDenied />;
     }
 
-    return (
+    return route.name === "admin-users" ? (
       <AdminUsersPage
         accessToken={authSession.accessToken}
         adminUsers={adminUsers}
+        page={route.page}
+        onSessionRejected={onSessionRejected}
+      />
+    ) : (
+      <AdminUserDetailsPage
+        accessToken={authSession.accessToken}
+        adminUsers={adminUsers}
+        userId={route.userId}
+        returnPage={route.returnPage}
         onSessionRejected={onSessionRejected}
       />
     );
