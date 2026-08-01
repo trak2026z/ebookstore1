@@ -3,6 +3,13 @@ import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from "class-va
 
 import type { AdminUserRole } from "@ebookstore/contracts";
 
+import {
+  ADMIN_USER_SORT_FIELDS,
+  ADMIN_USER_SORT_ORDERS,
+  type AdminUserSortField,
+  type AdminUserSortOrder,
+} from "../admin-user-list-options";
+
 export const ADMIN_USER_STATUS_FILTERS = ["active", "inactive"] as const;
 
 export type AdminUserStatusFilter = (typeof ADMIN_USER_STATUS_FILTERS)[number];
@@ -42,4 +49,14 @@ export class ListAdminUsersQueryDto {
   @IsOptional()
   @IsIn(ADMIN_USER_STATUS_FILTERS)
   status?: AdminUserStatusFilter;
+
+  @Transform(trimOptionalText)
+  @IsOptional()
+  @IsIn(ADMIN_USER_SORT_FIELDS)
+  sortBy: AdminUserSortField = "createdAt";
+
+  @Transform(trimOptionalText)
+  @IsOptional()
+  @IsIn(ADMIN_USER_SORT_ORDERS)
+  order: AdminUserSortOrder = "desc";
 }

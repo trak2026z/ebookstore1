@@ -94,6 +94,8 @@ describe("AdminUsersPage", () => {
         query: "tomasz",
         role: "USER",
         status: "active",
+        sortBy: "email",
+        order: "asc",
       },
     });
 
@@ -105,6 +107,8 @@ describe("AdminUsersPage", () => {
       query: "tomasz",
       role: "USER",
       status: "active",
+      sortBy: "email",
+      order: "asc",
     });
   });
 
@@ -137,6 +141,8 @@ describe("AdminUsersPage", () => {
         query: "example",
         role: "USER",
         status: "active",
+        sortBy: "displayName",
+        order: "asc",
       },
     });
 
@@ -159,7 +165,7 @@ describe("AdminUsersPage", () => {
       }),
     ).toHaveAttribute(
       "href",
-      `/admin/users/${user.id}?page=2&query=example&role=USER&status=active`,
+      `/admin/users/${user.id}?page=2&query=example&role=USER&status=active&sortBy=displayName&order=asc`,
     );
 
     const dates = Array.from(container.querySelectorAll("time"));
@@ -184,6 +190,8 @@ describe("AdminUsersPage", () => {
         query: "tomasz",
         role: "ADMIN",
         status: "inactive",
+        sortBy: "role",
+        order: "asc",
       },
     });
 
@@ -197,18 +205,24 @@ describe("AdminUsersPage", () => {
       screen.getByRole("link", {
         name: "Poprzednia",
       }),
-    ).toHaveAttribute("href", "/admin/users?query=tomasz&role=ADMIN&status=inactive");
+    ).toHaveAttribute(
+      "href",
+      "/admin/users?query=tomasz&role=ADMIN&status=inactive&sortBy=role&order=asc",
+    );
 
     expect(
       screen.getByRole("link", {
         name: "Następna",
       }),
-    ).toHaveAttribute("href", "/admin/users?page=3&query=tomasz&role=ADMIN&status=inactive");
+    ).toHaveAttribute(
+      "href",
+      "/admin/users?page=3&query=tomasz&role=ADMIN&status=inactive&sortBy=role&order=asc",
+    );
 
     expect(screen.getByText("Strona 2 z 3")).toBeInTheDocument();
   });
 
-  it("applies normalized filters and resets pagination to page one", async () => {
+  it("applies normalized filters and sorting and resets pagination to page one", async () => {
     const listUsers = vi.fn<AdminUsersApi["listUsers"]>().mockResolvedValue(createResponse([user]));
     const onNavigate = vi.fn();
 
@@ -238,15 +252,25 @@ describe("AdminUsersPage", () => {
         value: "inactive",
       },
     });
+    fireEvent.change(screen.getByLabelText("Sortuj według"), {
+      target: {
+        value: "email",
+      },
+    });
+    fireEvent.change(screen.getByLabelText("Kierunek"), {
+      target: {
+        value: "asc",
+      },
+    });
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Zastosuj filtry",
+        name: "Zastosuj ustawienia",
       }),
     );
 
     expect(onNavigate).toHaveBeenCalledWith(
-      "/admin/users?query=Tomasz+Rak&role=USER&status=inactive",
+      "/admin/users?query=Tomasz+Rak&role=USER&status=inactive&sortBy=email&order=asc",
     );
   });
 
@@ -261,6 +285,8 @@ describe("AdminUsersPage", () => {
         query: "tomasz",
         role: "ADMIN",
         status: "active",
+        sortBy: "email",
+        order: "asc",
       },
       onNavigate,
     });
@@ -276,7 +302,9 @@ describe("AdminUsersPage", () => {
     expect(screen.getByLabelText("Szukaj")).toHaveValue("");
     expect(screen.getByLabelText("Rola")).toHaveValue("");
     expect(screen.getByLabelText("Status")).toHaveValue("");
-    expect(onNavigate).toHaveBeenCalledWith("/admin/users");
+    expect(screen.getByLabelText("Sortuj według")).toHaveValue("email");
+    expect(screen.getByLabelText("Kierunek")).toHaveValue("asc");
+    expect(onNavigate).toHaveBeenCalledWith("/admin/users?sortBy=email&order=asc");
   });
 
   it("renders a distinct empty state for active filters", async () => {

@@ -296,6 +296,19 @@ elif mode == "admin_filtered_empty":
         "totalPages": 0,
     }, payload
     assert payload["items"] == [], payload
+elif mode == "admin_sorted_email_desc":
+    assert payload["pagination"] == {
+        "page": 1,
+        "pageSize": 100,
+        "total": 21,
+        "totalPages": 1,
+    }, payload
+    expected_emails = sorted([*SMOKE_USER_EMAILS, email], reverse=True)
+    assert [item["email"] for item in payload["items"]] == expected_emails, payload
+
+    for item in payload["items"]:
+        expected_role = "ADMIN" if item["email"] == email else "USER"
+        admin_user(item, item["email"], expected_role, True)
 elif mode == "admin_details":
     admin_user(payload, email, "USER", True)
 elif mode == "admin_role_admin":
@@ -836,6 +849,30 @@ request_with_method \
   200 \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 check_auth_json admin_filtered_empty "$ADMIN_EMAIL"
+
+request_with_method \
+  "admin email descending sort" \
+  GET \
+  "/admin/users?page=1&pageSize=100&sortBy=email&order=desc" \
+  200 \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+check_auth_json admin_sorted_email_desc "$ADMIN_EMAIL"
+
+request_with_method \
+  "admin invalid sort field" \
+  GET \
+  "/admin/users?page=1&pageSize=20&sortBy=passwordHash" \
+  400 \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+check_json validation
+
+request_with_method \
+  "admin invalid sort order" \
+  GET \
+  "/admin/users?page=1&pageSize=20&order=sideways" \
+  400 \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+check_json validation
 
 request_with_method \
   "admin invalid filter" \

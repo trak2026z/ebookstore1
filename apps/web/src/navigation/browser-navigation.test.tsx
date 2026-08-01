@@ -28,16 +28,22 @@ describe("browser navigation", () => {
         query: " Tomasz Rak ",
         role: "USER",
         status: "inactive",
+        sortBy: "email",
+        order: "asc",
       }),
-    ).toBe("/admin/users?page=3&query=Tomasz+Rak&role=USER&status=inactive");
+    ).toBe("/admin/users?page=3&query=Tomasz+Rak&role=USER&status=inactive&sortBy=email&order=asc");
     expect(
       createAdminUserPath(" user/id ", {
         page: 2,
         query: "tomasz",
         role: "ADMIN",
         status: "active",
+        sortBy: "displayName",
+        order: "asc",
       }),
-    ).toBe("/admin/users/user%2Fid?page=2&query=tomasz&role=ADMIN&status=active");
+    ).toBe(
+      "/admin/users/user%2Fid?page=2&query=tomasz&role=ADMIN&status=active&sortBy=displayName&order=asc",
+    );
 
     expect(() => createBookPath("   ")).toThrow(TypeError);
     expect(() =>
@@ -55,12 +61,14 @@ describe("browser navigation", () => {
       query: "Tomasz Rak",
       role: "USER",
       status: "inactive",
+      sortBy: "email",
+      order: "asc",
     } as const;
 
     expect(
       readBrowserRoute(
         "/admin/users/",
-        "?page=2&query=%20Tomasz%20Rak%20&role=USER&status=inactive",
+        "?page=2&query=%20Tomasz%20Rak%20&role=USER&status=inactive&sortBy=email&order=asc",
       ),
     ).toEqual({
       name: "admin-users",
@@ -70,7 +78,7 @@ describe("browser navigation", () => {
     expect(
       readBrowserRoute(
         "/admin/users/user%2Fid",
-        "?page=2&query=Tomasz+Rak&role=USER&status=inactive",
+        "?page=2&query=Tomasz+Rak&role=USER&status=inactive&sortBy=email&order=asc",
       ),
     ).toEqual({
       name: "admin-user-details",
@@ -80,7 +88,12 @@ describe("browser navigation", () => {
   });
 
   it("falls back safely for invalid pagination and filter values", () => {
-    expect(readBrowserRoute("/admin/users/", "?page=invalid&role=OWNER&status=disabled")).toEqual({
+    expect(
+      readBrowserRoute(
+        "/admin/users/",
+        "?page=invalid&role=OWNER&status=disabled&sortBy=passwordHash&order=sideways",
+      ),
+    ).toEqual({
       name: "admin-users",
       query: EMPTY_ADMIN_USERS_QUERY,
     });
@@ -122,7 +135,7 @@ describe("browser navigation", () => {
 
     render(
       <a
-        href="/admin/users/user-id?page=2&query=tomasz&role=USER&status=active"
+        href="/admin/users/user-id?page=2&query=tomasz&role=USER&status=active&sortBy=status&order=asc"
         data-app-link="true"
       >
         Szczegóły
@@ -136,7 +149,9 @@ describe("browser navigation", () => {
     );
 
     expect(window.location.pathname).toBe("/admin/users/user-id");
-    expect(window.location.search).toBe("?page=2&query=tomasz&role=USER&status=active");
+    expect(window.location.search).toBe(
+      "?page=2&query=tomasz&role=USER&status=active&sortBy=status&order=asc",
+    );
     expect(routes).toEqual([
       {
         name: "admin-user-details",
@@ -146,6 +161,8 @@ describe("browser navigation", () => {
           query: "tomasz",
           role: "USER",
           status: "active",
+          sortBy: "status",
+          order: "asc",
         },
       },
     ]);
@@ -159,7 +176,7 @@ describe("browser navigation", () => {
       routes.push(route);
     });
 
-    window.history.replaceState(null, "", "/admin/users?page=4&role=ADMIN");
+    window.history.replaceState(null, "", "/admin/users?page=4&role=ADMIN&sortBy=role&order=asc");
     window.dispatchEvent(new PopStateEvent("popstate"));
 
     expect(routes).toEqual([
@@ -170,6 +187,8 @@ describe("browser navigation", () => {
           query: "",
           role: "ADMIN",
           status: "",
+          sortBy: "role",
+          order: "asc",
         },
       },
     ]);
