@@ -143,10 +143,12 @@ describe("AdminUsersController", () => {
     expect(adminUsersService.listUsers).toHaveBeenCalledWith({
       page: 1,
       pageSize: 20,
+      sortBy: "createdAt",
+      order: "desc",
     });
   });
 
-  it("transforms pagination, search, role and status query parameters", async () => {
+  it("transforms pagination, filters and sorting query parameters", async () => {
     adminUsersService.listUsers.mockResolvedValue({
       items: [],
       pagination: {
@@ -165,6 +167,8 @@ describe("AdminUsersController", () => {
         query: "  tomasz@example.com  ",
         role: "USER",
         status: "inactive",
+        sortBy: "email",
+        order: "asc",
       })
       .set("Authorization", "Bearer admin-token")
       .expect(200);
@@ -175,6 +179,8 @@ describe("AdminUsersController", () => {
       query: "tomasz@example.com",
       role: "USER",
       status: "inactive",
+      sortBy: "email",
+      order: "asc",
     });
   });
 
@@ -200,6 +206,16 @@ describe("AdminUsersController", () => {
     {
       query: {
         status: "disabled",
+      },
+    },
+    {
+      query: {
+        sortBy: "passwordHash",
+      },
+    },
+    {
+      query: {
+        order: "sideways",
       },
     },
     {

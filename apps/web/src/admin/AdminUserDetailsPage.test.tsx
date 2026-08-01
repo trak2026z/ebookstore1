@@ -111,6 +111,8 @@ describe("AdminUserDetailsPage", () => {
         query: "tomasz",
         role: "USER",
         status: "active",
+        sortBy: "email",
+        order: "asc",
       },
     });
 
@@ -131,7 +133,10 @@ describe("AdminUserDetailsPage", () => {
       screen.getByRole("link", {
         name: "Wróć do listy użytkowników",
       }),
-    ).toHaveAttribute("href", "/admin/users?page=3&query=tomasz&role=USER&status=active");
+    ).toHaveAttribute(
+      "href",
+      "/admin/users?page=3&query=tomasz&role=USER&status=active&sortBy=email&order=asc",
+    );
 
     const dates = Array.from(container.querySelectorAll("time"));
 

@@ -165,12 +165,27 @@ pass "workspace, API and web images built"
 log "Starting PostgreSQL"
 "${COMPOSE[@]}" up -d postgres
 
+log "Stopping services that share the dependency volume"
+"${COMPOSE[@]}" stop web api >/dev/null 2>&1 || true
+pass "API and web services stopped before dependency installation"
+
 log "Installing locked dependencies into the Compose volume"
-"${COMPOSE[@]}" run --rm workspace npm ci
+"${COMPOSE[@]}" run --rm -T workspace \
+  npm ci --include=optional \
+  </dev/null
 pass "npm dependencies installed"
 
+log "Verifying API and web runtime dependencies"
+"${COMPOSE[@]}" run --rm -T workspace \
+  node --input-type=module \
+  --eval 'await import("@nestjs/common"); await import("vite");' \
+  </dev/null
+pass "API and web runtime dependencies are resolvable"
+
 log "Generating the Prisma client"
-"${COMPOSE[@]}" run --rm workspace   npm run db:generate --workspace @ebookstore/api
+"${COMPOSE[@]}" run --rm -T workspace \
+  npm run db:generate --workspace @ebookstore/api \
+  </dev/null
 pass "Prisma client generated"
 
 log "Starting API and web services"

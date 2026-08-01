@@ -87,6 +87,8 @@ describe("createAdminUsersApi", () => {
         query: "  Tomasz Rak  ",
         role: "USER",
         status: "inactive",
+        sortBy: "email",
+        order: "asc",
       }),
     ).resolves.toEqual(listResponse);
 
@@ -94,7 +96,9 @@ describe("createAdminUsersApi", () => {
       {
         method: "GET",
         path:
-          "/api/v1/admin/users?page=2&pageSize=20" + "&query=Tomasz+Rak&role=USER&status=inactive",
+          "/api/v1/admin/users?page=2&pageSize=20" +
+          "&query=Tomasz+Rak&role=USER&status=inactive" +
+          "&sortBy=email&order=asc",
         options: {
           accessToken: "admin-token",
         },

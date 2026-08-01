@@ -12,6 +12,8 @@ import {
   createAdminUsersPath,
   type AdminUserRoleFilter,
   type AdminUsersRouteQuery,
+  type AdminUserSortField,
+  type AdminUserSortOrder,
   type AdminUserStatusFilter,
 } from "../navigation/browser-navigation";
 
@@ -28,6 +30,8 @@ interface AdminUsersFilterValues {
   readonly query: string;
   readonly role: AdminUserRoleFilter;
   readonly status: AdminUserStatusFilter;
+  readonly sortBy: AdminUserSortField;
+  readonly order: AdminUserSortOrder;
 }
 
 type AdminUsersState =
@@ -76,6 +80,8 @@ function filterValuesFromRoute(routeQuery: AdminUsersRouteQuery): AdminUsersFilt
     query: routeQuery.query,
     role: routeQuery.role,
     status: routeQuery.status,
+    sortBy: routeQuery.sortBy ?? "createdAt",
+    order: routeQuery.order ?? "desc",
   };
 }
 
@@ -102,6 +108,8 @@ function toApiQuery(routeQuery: AdminUsersRouteQuery): AdminUserListQuery {
           status: routeQuery.status,
         }
       : {}),
+    sortBy: routeQuery.sortBy ?? "createdAt",
+    order: routeQuery.order ?? "desc",
   };
 }
 
@@ -188,7 +196,11 @@ function AdminUsersFilters({
   }
 
   return (
-    <form className="admin-user-filters" aria-label="Filtry użytkowników" onSubmit={handleSubmit}>
+    <form
+      className="admin-user-filters"
+      aria-label="Filtry i sortowanie użytkowników"
+      onSubmit={handleSubmit}
+    >
       <div className="admin-user-filters__grid">
         <label>
           <span>Szukaj</span>
@@ -239,10 +251,45 @@ function AdminUsersFilters({
             <option value="inactive">Nieaktywne</option>
           </select>
         </label>
+
+        <label>
+          <span>Sortuj według</span>
+          <select
+            name="sortBy"
+            value={values.sortBy}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+              updateValues({
+                sortBy: event.currentTarget.value as AdminUserSortField,
+              });
+            }}
+          >
+            <option value="createdAt">Data utworzenia</option>
+            <option value="email">Adres e-mail</option>
+            <option value="displayName">Nazwa</option>
+            <option value="role">Rola</option>
+            <option value="status">Status</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Kierunek</span>
+          <select
+            name="order"
+            value={values.order}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+              updateValues({
+                order: event.currentTarget.value as AdminUserSortOrder,
+              });
+            }}
+          >
+            <option value="desc">Malejąco</option>
+            <option value="asc">Rosnąco</option>
+          </select>
+        </label>
       </div>
 
       <div className="admin-user-filters__actions">
-        <button type="submit">Zastosuj filtry</button>
+        <button type="submit">Zastosuj ustawienia</button>
         <button
           type="button"
           disabled={!hasAppliedFilters && !values.query && !values.role && !values.status}
@@ -392,7 +439,7 @@ export function AdminUsersPage({
 
   useEffect(() => {
     setDraftFilters(filterValuesFromRoute(routeQuery));
-  }, [routeQuery.query, routeQuery.role, routeQuery.status]);
+  }, [routeQuery.query, routeQuery.role, routeQuery.status, routeQuery.sortBy, routeQuery.order]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -451,6 +498,8 @@ export function AdminUsersPage({
     routeQuery.query,
     routeQuery.role,
     routeQuery.status,
+    routeQuery.sortBy,
+    routeQuery.order,
   ]);
 
   function retry(): void {
@@ -464,6 +513,8 @@ export function AdminUsersPage({
         query: draftFilters.query,
         role: draftFilters.role,
         status: draftFilters.status,
+        sortBy: draftFilters.sortBy,
+        order: draftFilters.order,
       }),
     );
   }
@@ -473,8 +524,18 @@ export function AdminUsersPage({
       query: "",
       role: "",
       status: "",
+      sortBy: routeQuery.sortBy ?? "createdAt",
+      order: routeQuery.order ?? "desc",
     });
-    onNavigate(createAdminUsersPath());
+    onNavigate(
+      createAdminUsersPath({
+        ...routeQuery,
+        page: 1,
+        query: "",
+        role: "",
+        status: "",
+      }),
+    );
   }
 
   if (state.status === "forbidden") {
@@ -490,7 +551,7 @@ export function AdminUsersPage({
 
         <h1 id="admin-users-title">Użytkownicy</h1>
 
-        <p className="admin-card__summary">Wyszukuj konta oraz filtruj je według roli i statusu.</p>
+        <p className="admin-card__summary">Wyszukuj, filtruj i sortuj konta użytkowników.</p>
 
         <AdminUsersFilters
           values={draftFilters}

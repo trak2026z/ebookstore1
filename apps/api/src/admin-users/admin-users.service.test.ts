@@ -154,6 +154,42 @@ describe("AdminUsersService", () => {
     });
   });
 
+  it.each([
+    ["createdAt", "asc", { createdAt: "asc" }],
+    ["email", "desc", { email: "desc" }],
+    ["displayName", "asc", { displayName: "asc" }],
+    ["role", "desc", { role: "desc" }],
+    ["status", "asc", { isActive: "asc" }],
+  ] as const)(
+    "sorts by %s in %s order with a stable ID tie-breaker",
+    async (sortBy, order, primaryOrderBy) => {
+      findMany.mockResolvedValue([]);
+      count.mockResolvedValue(0);
+
+      await service.listUsers({
+        page: 1,
+        pageSize: 20,
+        sortBy,
+        order,
+      });
+
+      expect(findMany).toHaveBeenCalledWith({
+        select: {
+          id: true,
+          email: true,
+          displayName: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: [primaryOrderBy, { id: "asc" }],
+        skip: 0,
+        take: 20,
+      });
+    },
+  );
+
   it("returns an empty page with correct pagination metadata", async () => {
     findMany.mockResolvedValue([]);
     count.mockResolvedValue(0);

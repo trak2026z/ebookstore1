@@ -1,11 +1,15 @@
 export type AdminUserRoleFilter = "" | "USER" | "ADMIN";
 export type AdminUserStatusFilter = "" | "active" | "inactive";
+export type AdminUserSortField = "createdAt" | "email" | "displayName" | "role" | "status";
+export type AdminUserSortOrder = "asc" | "desc";
 
 export interface AdminUsersRouteQuery {
   readonly page: number;
   readonly query: string;
   readonly role: AdminUserRoleFilter;
   readonly status: AdminUserStatusFilter;
+  readonly sortBy?: AdminUserSortField;
+  readonly order?: AdminUserSortOrder;
 }
 
 export type AppRoute =
@@ -61,6 +65,28 @@ function normalizeStatus(status: AdminUserStatusFilter): AdminUserStatusFilter {
   return status;
 }
 
+function normalizeSortBy(sortBy: AdminUserSortField): AdminUserSortField {
+  if (
+    sortBy !== "createdAt" &&
+    sortBy !== "email" &&
+    sortBy !== "displayName" &&
+    sortBy !== "role" &&
+    sortBy !== "status"
+  ) {
+    throw new TypeError("Sort field is invalid.");
+  }
+
+  return sortBy;
+}
+
+function normalizeSortOrder(order: AdminUserSortOrder): AdminUserSortOrder {
+  if (order !== "asc" && order !== "desc") {
+    throw new TypeError("Sort order is invalid.");
+  }
+
+  return order;
+}
+
 function readPage(parameters: URLSearchParams): number {
   const value = parameters.get("page");
 
@@ -85,14 +111,31 @@ function readStatus(parameters: URLSearchParams): AdminUserStatusFilter {
   return value === "active" || value === "inactive" ? value : "";
 }
 
+function readSortBy(parameters: URLSearchParams): AdminUserSortField | undefined {
+  const value = parameters.get("sortBy");
+
+  return value === "email" || value === "displayName" || value === "role" || value === "status"
+    ? value
+    : undefined;
+}
+
+function readSortOrder(parameters: URLSearchParams): AdminUserSortOrder | undefined {
+  return parameters.get("order") === "asc" ? "asc" : undefined;
+}
+
 function readAdminUsersQuery(search: string): AdminUsersRouteQuery {
   const parameters = new URLSearchParams(search);
+
+  const sortBy = readSortBy(parameters);
+  const order = readSortOrder(parameters);
 
   return {
     page: readPage(parameters),
     query: parameters.get("query")?.trim() ?? "",
     role: readRole(parameters),
     status: readStatus(parameters),
+    ...(sortBy === undefined ? {} : { sortBy }),
+    ...(order === undefined ? {} : { order }),
   };
 }
 
@@ -122,6 +165,8 @@ export function createAdminUsersPath(
   const normalizedQuery = query.query.trim();
   const role = normalizeRole(query.role);
   const status = normalizeStatus(query.status);
+  const sortBy = normalizeSortBy(query.sortBy ?? "createdAt");
+  const order = normalizeSortOrder(query.order ?? "desc");
 
   if (page > 1) {
     parameters.set("page", String(page));
@@ -137,6 +182,14 @@ export function createAdminUsersPath(
 
   if (status) {
     parameters.set("status", status);
+  }
+
+  if (sortBy !== "createdAt") {
+    parameters.set("sortBy", sortBy);
+  }
+
+  if (order !== "desc") {
+    parameters.set("order", order);
   }
 
   const queryString = parameters.toString();

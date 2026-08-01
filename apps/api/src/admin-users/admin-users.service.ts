@@ -8,6 +8,7 @@ import type {
 
 import { DatabaseService } from "../database/database.service";
 import type { Prisma } from "../generated/prisma/client.js";
+import type { AdminUserSortField, AdminUserSortOrder } from "./admin-user-list-options";
 
 export interface ListAdminUsersInput {
   readonly page: number;
@@ -15,6 +16,8 @@ export interface ListAdminUsersInput {
   readonly query?: string;
   readonly role?: AdminUserRole;
   readonly status?: "active" | "inactive";
+  readonly sortBy?: AdminUserSortField;
+  readonly order?: AdminUserSortOrder;
 }
 
 export interface UpdateAdminUserRoleInput {
@@ -88,6 +91,31 @@ function createAdminUserWhere(input: ListAdminUsersInput): Prisma.UserWhereInput
   return Object.keys(where).length === 0 ? undefined : where;
 }
 
+function createAdminUserOrderBy(input: ListAdminUsersInput): Prisma.UserOrderByWithRelationInput[] {
+  const sortBy = input.sortBy ?? "createdAt";
+  const order = input.order ?? "desc";
+
+  const primaryOrderBy = {
+    createdAt: {
+      createdAt: order,
+    },
+    email: {
+      email: order,
+    },
+    displayName: {
+      displayName: order,
+    },
+    role: {
+      role: order,
+    },
+    status: {
+      isActive: order,
+    },
+  } satisfies Record<AdminUserSortField, Prisma.UserOrderByWithRelationInput>;
+
+  return [primaryOrderBy[sortBy], { id: "asc" }];
+}
+
 @Injectable()
 export class AdminUsersService {
   constructor(
@@ -102,7 +130,7 @@ export class AdminUsersService {
     const [users, total] = await Promise.all([
       this.database.prisma.user.findMany({
         select: ADMIN_USER_SELECT,
-        orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+        orderBy: createAdminUserOrderBy(input),
         skip,
         take: input.pageSize,
         ...(where === undefined ? {} : { where }),

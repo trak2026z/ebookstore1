@@ -379,6 +379,8 @@ describe("App", () => {
     expect(listUsers).toHaveBeenCalledWith("signed.jwt.token", {
       page: 1,
       pageSize: 20,
+      sortBy: "createdAt",
+      order: "desc",
     });
   });
 
@@ -418,7 +420,7 @@ describe("App", () => {
     );
 
     await screen.findByRole("form", {
-      name: "Filtry użytkowników",
+      name: "Filtry i sortowanie użytkowników",
     });
 
     fireEvent.change(screen.getByLabelText("Szukaj"), {
@@ -436,14 +438,26 @@ describe("App", () => {
         value: "active",
       },
     });
+    fireEvent.change(screen.getByLabelText("Sortuj według"), {
+      target: {
+        value: "email",
+      },
+    });
+    fireEvent.change(screen.getByLabelText("Kierunek"), {
+      target: {
+        value: "asc",
+      },
+    });
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Zastosuj filtry",
+        name: "Zastosuj ustawienia",
       }),
     );
 
     expect(window.location.pathname).toBe("/admin/users");
-    expect(window.location.search).toBe("?query=managed&role=USER&status=active");
+    expect(window.location.search).toBe(
+      "?query=managed&role=USER&status=active&sortBy=email&order=asc",
+    );
 
     await waitFor(() => {
       expect(listUsers).toHaveBeenLastCalledWith("signed.jwt.token", {
@@ -452,6 +466,8 @@ describe("App", () => {
         query: "managed",
         role: "USER",
         status: "active",
+        sortBy: "email",
+        order: "asc",
       });
     });
   });

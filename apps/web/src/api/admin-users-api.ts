@@ -9,6 +9,8 @@ import type {
 import { createApiClient, type JsonApiClient } from "./api-client";
 
 export type AdminUserStatusFilter = "active" | "inactive";
+export type AdminUserSortField = "createdAt" | "email" | "displayName" | "role" | "status";
+export type AdminUserSortOrder = "asc" | "desc";
 
 export interface AdminUserListQuery {
   readonly page: number;
@@ -16,6 +18,8 @@ export interface AdminUserListQuery {
   readonly query?: string;
   readonly role?: AdminUserRole;
   readonly status?: AdminUserStatusFilter;
+  readonly sortBy?: AdminUserSortField;
+  readonly order?: AdminUserSortOrder;
 }
 
 export interface AdminUsersApi {
@@ -81,6 +85,8 @@ function createListPath(query: AdminUserListQuery): string {
   appendOptionalText(parameters, "query", query.query);
   appendOptionalText(parameters, "role", query.role);
   appendOptionalText(parameters, "status", query.status);
+  appendOptionalText(parameters, "sortBy", query.sortBy);
+  appendOptionalText(parameters, "order", query.order);
 
   return `/api/v1/admin/users?${parameters.toString()}`;
 }
